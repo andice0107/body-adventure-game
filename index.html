@@ -1255,7 +1255,7 @@ function drawHUD() {
     let size = fs * 1.6;
     ctx.font = `900 ${size}px ${ff}`;
     while (ctx.measureText(quiz.cur.q).width > maxW - 40 && size > 14) { size -= 2; ctx.font = `900 ${size}px ${ff}`; }
-    const multi = quiz.cur.corrects.length > 1, tw = Math.min(maxW, ctx.measureText(quiz.cur.q).width + 40), bh = size * (multi ? 2.5 : 1.7), by = two ? pad + fs * 4 : Math.max(64, pad + fs * 1.6);
+    const multi = quiz.cur.corrects.length > 1, tw = Math.min(maxW, ctx.measureText(quiz.cur.q).width + 40), bh = size * (multi ? 2.5 : 1.7), by = H - bh - Math.max(14, pad);   // 題目放在畫面下方，不擋住掉落的東西
     const bx = W / 2 - tw / 2;
     ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.strokeStyle = '#fbd38d'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.roundRect(bx, by, tw, bh, size * 0.35); ctx.fill(); ctx.stroke();
