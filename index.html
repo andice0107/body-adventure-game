@@ -109,6 +109,7 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
 .teacher-btn:hover { background: rgba(0,0,0,.8); }
 #pauseBtn { top: 12px; white-space: nowrap; left: 50%; transform: translateX(-50%); display: none; }
 #fsBtn { right: 12px; bottom: 12px; }
+#helpBtn { left: 12px; bottom: 12px; display: none; background: rgba(43,108,176,.85); }
 #settingsGear { left: 12px; bottom: 12px; }
 #soundTip {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 1100;
@@ -161,6 +162,26 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
 .preview-box { width: 64px; height: 64px; border: 2px solid #fff; display: inline-flex; justify-content: center; align-items: center; background: #000; overflow: hidden; border-radius: 8px; }
 .preview-box img { width: 100%; height: 100%; object-fit: contain; }
 
+/* ===== 遊戲說明 ===== */
+#helpScreen { position: fixed; inset: 0; z-index: 1300; background: #111827; display: none; flex-direction: column; text-align: left; -webkit-user-select: text; user-select: text; }
+#helpScreen.active { display: flex; }
+.help-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: grid; gap: 16px; align-content: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); font-size: clamp(16px, 2.1vh, 21px); line-height: 1.7; }
+.help-card { background: #1f2937; border: 2px solid #374151; border-radius: 14px; padding: 14px 18px; min-width: 0; }
+.help-card.wide { grid-column: 1 / -1; }
+.help-card p { font-size: 1em; color: #e5e7eb; text-shadow: none; line-height: 1.7; margin: 6px 0; }
+.help-card h3 { margin: 0 0 8px; color: #90cdf4; font-size: 1.25em; }
+.help-card ul, .help-card ol { margin: 6px 0; padding-left: 1.4em; }
+.help-card li { margin: 4px 0; }
+.help-card code, .help-card pre { background: #0b1220; color: #fbd38d; border-radius: 8px; padding: 2px 8px; font-family: var(--font); }
+.help-card pre { padding: 10px 14px; white-space: pre-wrap; margin: 8px 0; }
+.help-card table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+.help-card td, .help-card th { border: 1px solid #4b5563; padding: 6px 10px; text-align: left; }
+.help-card th { background: #111827; color: #90cdf4; }
+.tpl-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid #374151; }
+.tpl-row:last-child { border-bottom: none; }
+.tpl-row .tpl-name { font-weight: 900; color: #fff; min-width: 9em; }
+.tpl-row .tpl-desc { flex: 1; min-width: 12em; color: #cbd5e0; }
 /* ===== 特效 ===== */
 .damage-effect, .heal-effect { position: absolute; inset: 0; pointer-events: none; transition: box-shadow .1s; z-index: 25; }
 .damage-active { box-shadow: inset 0 0 60px 26px rgba(229, 62, 62, .85); }
@@ -204,6 +225,7 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
 
   <button id="pauseBtn" class="teacher-btn" onclick="pauseGame()">⏸ 暫停</button>
   <button id="fsBtn" class="teacher-btn" onclick="toggleFullscreen()">⛶ 全螢幕</button>
+  <button id="helpBtn" class="teacher-btn" onclick="openHelp()">📖 遊戲說明</button>
   <div id="soundTip">🔈 老師請先點一下畫面，才會有聲音</div>
 
   <!-- 開始畫面 -->
@@ -225,6 +247,7 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
   <div id="settingsScreen" class="overlay-screen">
     <div class="settings-header">
       <h2>⚙️ 遊戲設定（老師用滑鼠或手指操作）</h2>
+      <button class="small-btn" onclick="openHelp()">📖 遊戲說明</button>
       <button class="small-btn gray" onclick="resetConfig()">恢復預設值</button>
       <button class="small-btn green" onclick="saveAndBack()">✔ 儲存並返回</button>
     </div>
@@ -240,7 +263,19 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
           <div class="input-row"><span class="grow">答對一題得幾分</span><input type="number" id="quizScore" min="1" max="1000"> 分</div>
           <textarea id="quizText" spellcheck="false" placeholder="一行一題，例如：&#10;1+1等於多少？=2,3,5"></textarea>
           <div class="note">每行一題，寫法：<b>題目=正確答案,錯誤答案,錯誤答案</b>（第一個是正確答案，用逗號隔開）。只寫正確答案也可以，錯誤答案會自動拿別題的答案來湊。答案建議 4 個字以內，也可以用表情符號。<br>玩法：題目顯示在畫面上方，答案會掉下來，碰到<b>正確答案</b>得分並換下一題，碰到<b>錯的</b>扣 1 顆愛心。</div>
-          <div class="input-row"><button class="small-btn gray" onclick="resetQuiz()">換回範例題目</button></div>
+          <div class="input-row">
+            <button class="small-btn green" onclick="$('quizFile').click()">📂 上傳題目檔</button>
+            <label class="inline"><input type="checkbox" id="quizAppend"> 接在現有題目後面（不取代）</label>
+            <input type="file" id="quizFile" accept=".txt,.csv,.tsv,text/plain,text/csv" style="display:none" onchange="uploadQuiz(event)">
+            <button class="small-btn gray" onclick="downloadQuiz()">💾 下載目前題目</button>
+          </div>
+          <div class="input-row">
+            <select id="tplSelect" style="flex:1 1 100%"></select>
+            <button class="small-btn" onclick="loadTemplate()">載入這個範本</button>
+            <button class="small-btn gray" onclick="downloadTemplate($('tplSelect').value)">下載範本</button>
+          </div>
+          <div class="note">上傳檔案可以是 .txt 或 Excel 另存的 .csv（欄位：題目、正確答案、錯誤答案…）。更多說明按上面的「📖 遊戲說明」。</div>
+          <div class="input-row"><button class="small-btn gray" onclick="resetQuiz()">換回預設範例題目</button></div>
         </div>
       </div>
 
@@ -386,6 +421,149 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
     <div class="center-content">
       <h2>⚠️ 確定要離開嗎？</h2>
       <p>現在離開，這次的分數和關卡<br>就不會保留，要從第 1 關重新開始。</p>
+    </div>
+  </div>
+</div>
+
+
+<div id="helpScreen">
+  <div class="settings-header">
+    <h2>📖 遊戲說明</h2>
+    <button class="small-btn green" onclick="closeHelp()">✔ 回到遊戲</button>
+  </div>
+  <div class="help-body">
+    <div class="help-card wide"><h3>🎯 這是什麼遊戲？</h3>
+      <p>「全身互動冒險」是用<b>攝影機</b>玩的體感遊戲。學生站在鏡頭前，電腦會把人像抓出來放進遊戲畫面，學生用<b>身體、手、頭</b>去碰掉下來的東西。不用滑鼠、鍵盤，適合動動身體的課堂活動、輔導活動或下課時間。</p>
+      <p>有兩種玩法：<b>接寶物</b>（碰好東西加分、躲開陷阱）和<b>題目問答</b>（題目在上方，碰正確答案）。可以<b>單人</b>，也可以<b>雙人</b>（左右各一半）。</p>
+    </div>
+
+    <div class="help-card"><h3>① 開始之前（老師準備）</h3>
+      <ol>
+        <li>用 <b>Chrome</b>（電腦）或 <b>Safari</b>（iPad）打開網站，網址要是 <code>https://</code> 開頭。</li>
+        <li>瀏覽器問「要不要使用攝影機」，按<b>允許</b>。</li>
+        <li>第一次載入 AI 約要等 10～30 秒，請耐心等。</li>
+        <li>把電腦或 iPad 放在桌上（或接投影機），鏡頭對著學生站的位置。</li>
+        <li>點一下畫面，聲音才會出來（瀏覽器規定）。想要大畫面可以按右下角「⛶ 全螢幕」。</li>
+      </ol>
+    </div>
+
+    <div class="help-card"><h3>② 學生怎麼站？</h3>
+      <ul>
+        <li>離鏡頭約 <b>1.5～2.5 公尺</b>，讓<b>全身（至少上半身）</b>都在畫面裡。</li>
+        <li>背後盡量單純，不要有別人走來走去；光線要夠亮，不要背光（背後是大窗戶會抓不到）。</li>
+        <li>穿和背景不同顏色的衣服，抓人像會更準。</li>
+        <li>畫面上人身上會有<b>紅色</b>，那就是電腦抓到的範圍。看到紅色蓋住身體就對了。</li>
+        <li>雙人時，兩個人各站畫面左半邊、右半邊，中間有一條虛線。鏡頭越廣越好。</li>
+      </ul>
+    </div>
+
+    <div class="help-card"><h3>③ 怎麼「按按鈕」？（身體碰按鈕）</h3>
+      <ul>
+        <li>畫面左右兩邊有<b>長條按鈕</b>（例如「設定」「開始」）。</li>
+        <li>學生舉手，讓<b>身體碰到按鈕範圍並維持 3 秒</b>，按鈕下面的進度條會慢慢填滿，滿了就等於按下去。</li>
+        <li>中途手移開，進度就歸零，重新算。換畫面後 1 秒內不會偵測，避免誤按。</li>
+        <li>老師也可以直接<b>用滑鼠或手指點</b>這些按鈕。</li>
+      </ul>
+    </div>
+
+    <div class="help-card"><h3>④ 玩法一：接寶物</h3>
+      <table>
+        <tr><th>東西</th><th>碰到會…</th></tr>
+        <tr><td>⭐ 寶物（文字、表情符號或圖片）</td><td>加 10 分</td></tr>
+        <tr><td>💎 鑽石</td><td>加 50 分</td></tr>
+        <tr><td>❤️ 愛心</td><td>補 1 顆愛心（最多 5 顆）</td></tr>
+        <tr><td>💣 陷阱（文字、表情符號或圖片）</td><td>扣 1 顆愛心，要躲開！</td></tr>
+      </table>
+      <ul>
+        <li>每關預設 60 秒，時間到就過關；愛心用完就遊戲結束。</li>
+        <li>每過一關，東西掉得更快。</li>
+        <li>寶物判定比較寬鬆（擦到邊就算），陷阱判定比較嚴格（要真的碰到中間）。</li>
+        <li>人離開畫面太久（預設 3 秒），會被扣 1 顆愛心。</li>
+        <li>寶物和陷阱的內容可以在「設定」換成自己的字或圖片，例如這週要學的字詞。</li>
+      </ul>
+    </div>
+
+    <div class="help-card"><h3>⑤ 玩法二：題目問答</h3>
+      <ul>
+        <li>在「設定 → 玩法」選<b>題目問答</b>。</li>
+        <li>題目顯示在畫面<b>上方</b>，答案一個一個掉下來。</li>
+        <li>碰到<b>正確答案</b>：加分，馬上換下一題。</li>
+        <li>碰到<b>錯的答案</b>：扣 1 顆愛心。</li>
+        <li>沒有碰到也沒關係，正確答案會一直出現，直到答對為止。</li>
+        <li>題目會自動打亂順序，全部出完會再重新洗牌。</li>
+        <li><b>雙人</b>時是<b>搶答</b>：誰先碰到正確答案就是誰得分，兩人都會換下一題。</li>
+      </ul>
+    </div>
+
+    <div class="help-card"><h3>⑥ 雙人模式</h3>
+      <ul>
+        <li>「設定 → 玩法 → 人數」選<b>雙人</b>。</li>
+        <li>畫面分左右兩半：左邊是<b>玩家 1（藍色）</b>，右邊是<b>玩家 2（橘色）</b>。</li>
+        <li>各自有分數和愛心，離開畫面也各自扣愛心。</li>
+        <li>一個人愛心用完會「淘汰」，另一個人可以繼續玩；兩人都淘汰，遊戲結束並顯示誰獲勝。</li>
+        <li>每一半只看自己那邊的身體，所以手伸過中線不會搶到對方的東西。</li>
+      </ul>
+    </div>
+
+    <div class="help-card"><h3>⑦ 遊戲中的控制（老師用）</h3>
+      <ul>
+        <li><b>暫停</b>：畫面上方的「⏸ 暫停」，或鍵盤<b>空白鍵</b>、Esc。暫停後可「繼續」或「回主畫面」。</li>
+        <li>開始前和繼續前都有 <b>3、2、1 倒數</b>，讓學生站好。</li>
+        <li>切到別的分頁，遊戲會自動暫停。</li>
+        <li>過關後可以「下一關」或「回設定」；遊戲結束可以「再玩一次」。</li>
+      </ul>
+    </div>
+
+    <div class="help-card wide"><h3>⑧ 設定頁每一項是什麼</h3>
+      <table>
+        <tr><th>項目</th><th>說明</th></tr>
+        <tr><td>人數／玩法</td><td>單人或雙人；接寶物或題目問答。</td></tr>
+        <tr><td>每一關幾秒</td><td>預設 60 秒。人數多、想玩短一點可以改 30 秒。</td></tr>
+        <tr><td>開始時有幾顆愛心</td><td>1～5 顆，預設 3 顆。</td></tr>
+        <tr><td>每過一關，東西掉落變快</td><td>每關增加的速度，填 0 就是每關一樣快。</td></tr>
+        <tr><td>畫面上最多幾個東西</td><td>東西太多會很亂，雙人時會平分給兩邊。</td></tr>
+        <tr><td>陷阱出現率</td><td>接寶物時，陷阱佔多少％。調低比較簡單。</td></tr>
+        <tr><td>在身上顯示紅色</td><td>勾選後，人身上有紅色，看得出電腦抓到哪裡。不喜歡可取消。</td></tr>
+        <tr><td>人離開畫面幾秒就扣愛心</td><td>預設 3 秒，填 0 代表不扣。</td></tr>
+        <tr><td>畫面顯示方式</td><td>「填滿螢幕」人不會變形；「完整顯示」會看到整個鏡頭範圍，但人會被拉寬。</td></tr>
+        <tr><td>加分的東西／陷阱</td><td>輸入文字（一次可輸入多個字，會自動拆開）或上傳圖片。❤️ 不能當加分的東西。</td></tr>
+        <tr><td>掉落速度</td><td>每種東西的最慢～最快速度，數字越大越快。</td></tr>
+        <tr><td>答對一題得幾分</td><td>題目問答用，預設 10 分。</td></tr>
+        <tr><td>儲存並返回</td><td>設定和上傳的圖片、題目都會記在<b>這台電腦／平板的這個瀏覽器</b>，下次打開還在；換電腦或清除瀏覽資料就要重設（題目可以用「下載目前題目」備份）。</td></tr>
+      </table>
+    </div>
+
+    <div class="help-card wide"><h3>⑨ 題目怎麼寫、怎麼上傳、怎麼下載範本</h3>
+      <p><b>題目格式</b>：一行一題，寫成</p>
+      <pre>題目=正確答案,錯誤答案,錯誤答案</pre>
+      <ul>
+        <li><b>第一個答案一定是正確答案</b>，後面是錯誤答案，用逗號隔開（中文逗號、頓號也可以）。</li>
+        <li>只寫正確答案也可以，例如 <code>「大」的相反是=小</code>，錯誤答案會自動拿其他題的答案來湊。</li>
+        <li>答案建議 <b>4 個字以內</b>，字才夠大；也可以用表情符號（🍎🐶）。</li>
+        <li>以 <code>#</code> 開頭的行是備註，不會當題目。</li>
+      </ul>
+      <p><b>三種輸入題目的方式</b>（在「設定 → 玩法 → 題目問答」）：</p>
+      <ol>
+        <li><b>直接打字</b>：在大框框裡一行一題打。</li>
+        <li><b>上傳題目檔</b>：按「📂 上傳題目檔」選 .txt 或 .csv。勾「接在現有題目後面」就不會蓋掉原來的題目。Excel 請另存「CSV UTF-8」，欄位依序是：題目、正確答案、錯誤答案 1、錯誤答案 2…</li>
+        <li><b>載入範本</b>：選一個範本按「載入這個範本」，再改成自己要的題目。</li>
+      </ol>
+      <p>改好的題目可以按「💾 下載目前題目」存成檔案備份，也能分享給其他老師。</p>
+      <p><b>下載範本</b>（按下載，會存成 .txt，用記事本打開就能改；改好再回到遊戲上傳）：</p>
+      <div id="helpTplList"></div>
+    </div>
+
+    <div class="help-card wide"><h3>⑩ 常見問題</h3>
+      <ul>
+        <li><b>畫面一直卡在「載入中」</b>：重新整理；若學校網路慢，第一次要等久一點。仍不行，改用 Chrome。</li>
+        <li><b>說攝影機被封鎖</b>：Chrome 點網址列左邊的圖示，攝影機改「允許」後重新整理。iPad：設定 → Safari → 相機 → 允許。</li>
+        <li><b>找不到攝影機／被佔用</b>：關掉 Meet、Zoom、Teams 或其他開著攝影機的分頁再重新整理。</li>
+        <li><b>人抓不準、手臂消失</b>：站遠一點、光線打亮、背景單純、衣服和背景不同色。</li>
+        <li><b>沒有聲音</b>：先點一下畫面；iPad 請確認音量沒關。（iPad 靜音鍵不影響遊戲聲音。）</li>
+        <li><b>按鈕不小心被碰到</b>：需要維持 3 秒才會觸發，剛換畫面的 1 秒內也不會觸發。</li>
+        <li><b>想要整個畫面更大</b>：按右下角「⛶ 全螢幕」。iPad 可用 Safari「分享 → 加入主畫面」，從主畫面打開就是全螢幕。</li>
+        <li><b>攝影機畫面會傳到網路嗎？</b>不會。人像辨識都在這台電腦／平板裡面完成，沒有錄影也沒有上傳。</li>
+      </ul>
     </div>
   </div>
 </div>
@@ -742,13 +920,14 @@ function showScreen(id) {
   resetButtonStyles(); activeHoverBtn = null;
   hoverLockUntil = performance.now() + 1200;   // 換畫面後 1.2 秒內不偵測，避免手還舉著就誤觸
   $('pauseBtn').style.display = id ? 'none' : (gameState === 'PLAYING' ? 'block' : 'none');
+  $('helpBtn').style.display = id === 'startScreen' ? 'block' : 'none';
   $('fsBtn').style.display = (id && id !== 'settingsScreen' && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) ? 'block' : 'none';
   if (id !== null) hideAbs();
 }
 
 // ====================== 體感按鈕 ======================
 function checkButtonHover(now) {
-  if (!bodyPixelData || !activeScreenId || activeScreenId === 'settingsScreen') return;
+  if (!bodyPixelData || !activeScreenId || activeScreenId === 'settingsScreen' || helpOpen) return;
   if (now < hoverLockUntil) return;
   const screen = $(activeScreenId);
   const btns = screen.querySelectorAll('.interactive-btn');
@@ -812,10 +991,18 @@ requestAnimationFrame(loop);
 // ====================== 題目問答 ======================
 function parseQuestions(text) {
   const out = [];
-  String(text || '').split(/\r?\n/).forEach(line => {
+  const clean = a => a.trim().replace(/^["“”']+|["“”']+$/g, '').trim();
+  String(text || '').replace(/^\ufeff/, '').split(/\r?\n/).forEach(line => {
+    line = line.trim();
+    if (!line || /^[#＃]/.test(line)) return;
+    let q, ans;
     const m = line.match(/^(.*?)[=＝](.*)$/);
-    if (!m) return;
-    const q = m[1].trim(), ans = m[2].split(/[,，、]/).map(a => a.trim()).filter(Boolean);
+    if (m) { q = clean(m[1]); ans = m[2].split(/[,，、\t]/).map(clean).filter(Boolean); }
+    else {   // Excel 另存的 CSV／TSV：題目,正確答案,錯誤答案…
+      const parts = line.split(/\t|,|，/).map(clean);
+      if (parts[0] === '題目' && /答案/.test(parts[1] || '')) return;   // 跳過 Excel 的標題列
+      q = parts[0]; ans = parts.slice(1).filter(Boolean);
+    }
     if (q && ans.length) out.push({ q, correct: ans[0], wrongs: ans.slice(1) });
   });
   return out;
@@ -1226,6 +1413,142 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseGame();   // 切走時自動暫停
   else if (gameState === 'PLAYING' || gameState === 'PAUSED') keepScreenOn();
 });
+
+
+// ====================== 題目範本、上傳、下載 ======================
+const TEMPLATES = [
+  { id: 'blank', name: '空白格式（附說明）', desc: '只有格式說明和 2 題示範，自己照著寫。', text:
+`# 全身互動冒險 題目檔
+# 一行一題：題目=正確答案,錯誤答案,錯誤答案
+# 第一個答案一定是正確答案；答案建議 4 個字以內，也可以用表情符號
+# 以 # 開頭的行是備註，不會當題目
+「大」的相反是=小,多,長
+哪一個是動物？=🐶,🍎,⚽
+` },
+  { id: 'math', name: '數學：加減法（低年級）', desc: '10 以內的加法、減法和比大小。', text:
+`# 數學：加減法
+1+1等於多少？=2,3,1
+2+3等於多少？=5,4,6
+4+2等於多少？=6,5,7
+5+5等於多少？=10,9,11
+3+4等於多少？=7,6,8
+5-2等於多少？=3,2,4
+8-3等於多少？=5,4,6
+9-4等於多少？=5,6,4
+10-5等於多少？=5,4,6
+哪一個數字最大？=9,5,2
+哪一個數字最小？=1,6,8
+` },
+  { id: 'life', name: '認識生活：動物、水果、交通', desc: '用表情符號當答案，不識字的學生也能玩。', text:
+`# 認識生活（答案用表情符號）
+哪一個是動物？=🐶,🍎,⚽
+哪一個是水果？=🍌,🚗,✏️
+哪一個是交通工具？=🚗,🍎,🐱
+哪一個會游泳？=🐟,🐶,🐔
+哪一個會飛？=🐦,🐢,🐷
+哪一個是蔬菜？=🥦,🍰,🍎
+哪一個在天空？=☀️,🚗,🌳
+哪一個可以吃？=🍞,✏️,⚽
+紅燈亮了要=停,走,跑
+綠燈亮了可以=過馬路,睡覺,哭
+` },
+  { id: 'opposite', name: '國語：反義詞', desc: '常見反義字詞，答案只有 1～2 個字。', text:
+`# 國語：反義詞
+「大」的相反是=小,多,長
+「上」的相反是=下,左,前
+「高」的相反是=矮,胖,瘦
+「多」的相反是=少,大,長
+「長」的相反是=短,高,遠
+「快」的相反是=慢,急,忙
+「冷」的相反是=熱,涼,冰
+「新」的相反是=舊,老,破
+「開」的相反是=關,走,拉
+「哭」的相反是=笑,叫,睡
+` },
+  { id: 'zhuyin', name: '國語：認識注音（常見字）', desc: '看國字，找出正確的注音。', text:
+`# 國語：看國字找注音
+「大」的注音是=ㄉㄚˋ,ㄊㄞˋ,ㄒㄧㄠˇ
+「小」的注音是=ㄒㄧㄠˇ,ㄉㄚˋ,ㄕㄢ
+「山」的注音是=ㄕㄢ,ㄕㄨㄟˇ,ㄏㄨㄛˇ
+「水」的注音是=ㄕㄨㄟˇ,ㄏㄨㄛˇ,ㄇㄨˋ
+「火」的注音是=ㄏㄨㄛˇ,ㄕㄨㄟˇ,ㄖˋ
+「日」的注音是=ㄖˋ,ㄩㄝˋ,ㄕㄢ
+「月」的注音是=ㄩㄝˋ,ㄖˋ,ㄇㄨˋ
+「口」的注音是=ㄎㄡˇ,ㄕㄡˇ,ㄇㄨˋ
+「手」的注音是=ㄕㄡˇ,ㄎㄡˇ,ㄕㄨㄟˇ
+「木」的注音是=ㄇㄨˋ,ㄏㄨㄛˇ,ㄩㄝˋ
+` },
+  { id: 'social', name: '社會技巧：該怎麼做？', desc: '課堂、同儕互動的情境題。', text:
+`# 社會技巧：該怎麼做？
+同學借你東西，要說=謝謝,不用,哼
+想借別人的東西，要先說=請問可以借我嗎,直接拿,用搶的
+上課想發言，要先=舉手,大叫,走動
+看到同學跌倒了，可以=問他有沒有受傷,大笑,走開
+不小心碰到別人，要說=對不起,沒關係,不是我
+別人在說話，我要=等他說完,插嘴,走開
+生氣的時候，可以=深呼吸,打人,大叫
+想加入同學的遊戲，可以說=我可以一起玩嗎,讓開,不公平
+被同學拒絕了，可以=說好吧下次再玩,生氣,哭鬧
+老師在講話時，要=安靜聽,聊天,玩東西
+` },
+  { id: 'catch', name: '接寶物用：字詞清單（參考）', desc: '給「接寶物」玩法用的字詞參考，複製到寶物或陷阱的文字框使用。', text:
+`# 這個檔案是給「接寶物」玩法參考用的，不是題目檔。
+# 寶物（加分）：把下面整行複製，貼到「設定 → 加分的東西」的文字框，按新增
+我愛台灣花草樹木山水日月
+# 陷阱（扣愛心）：貼到「設定 → 陷阱」的文字框，按新增
+💣😈⚡💩
+` }
+];
+function downloadText(name, text) {
+  const blob = new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function downloadTemplate(id) {
+  const t = TEMPLATES.find(x => x.id === id); if (!t) return;
+  downloadText(`全身互動冒險_題目範本_${t.name.replace(/[：（）、\s]/g, '_').replace(/_+/g, '_')}.txt`, t.text);
+}
+function downloadQuiz() {
+  const text = $('quizText').value.trim() || DEFAULT_QUESTIONS;
+  downloadText('全身互動冒險_我的題目.txt', text + '\n');
+}
+function loadTemplate() {
+  const t = TEMPLATES.find(x => x.id === $('tplSelect').value); if (!t) return;
+  if ($('quizText').value.trim() && !confirm('這會取代目前輸入框裡的題目，確定嗎？（可以先按「下載目前題目」備份）')) return;
+  $('quizText').value = t.text;
+}
+async function decodeFile(file) {
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch (e) { try { return new TextDecoder('big5').decode(buf); } catch (e2) { return new TextDecoder('utf-8').decode(buf); } }
+}
+async function uploadQuiz(e) {
+  const file = e.target.files && e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  const text = (await decodeFile(file)).replace(/^﻿/, '');
+  const n = parseQuestions(text).length;
+  if (!n) { alert('這個檔案裡找不到題目。\n每行要像「1+1等於多少？=2,3,5」，或 Excel 的 CSV（題目、正確答案、錯誤答案…）。\n可以先到「📖 遊戲說明」下載範本看格式。'); return; }
+  const box = $('quizText');
+  box.value = $('quizAppend').checked && box.value.trim() ? box.value.replace(/\s+$/, '') + '\n' + text.trim() : text.trim();
+  alert(`已讀入 ${n} 題。記得按右上角「儲存並返回」才會生效。`);
+}
+function fillTemplateUI() {
+  const sel = $('tplSelect'); sel.innerHTML = '';
+  TEMPLATES.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; sel.appendChild(o); });
+  const list = $('helpTplList'); list.innerHTML = '';
+  TEMPLATES.forEach(t => {
+    const row = document.createElement('div'); row.className = 'tpl-row';
+    row.innerHTML = '<span class="tpl-name"></span><span class="tpl-desc"></span>';
+    row.querySelector('.tpl-name').textContent = t.name; row.querySelector('.tpl-desc').textContent = t.desc;
+    const b = document.createElement('button'); b.className = 'small-btn green'; b.textContent = '⬇ 下載'; b.onclick = () => downloadTemplate(t.id);
+    row.appendChild(b); list.appendChild(row);
+  });
+}
+let helpOpen = false;
+function openHelp() { helpOpen = true; resetButtonStyles(); activeHoverBtn = null; $('helpScreen').classList.add('active'); $('helpScreen').querySelector('.help-body').scrollTop = 0; }
+function closeHelp() { helpOpen = false; $('helpScreen').classList.remove('active'); hoverLockUntil = performance.now() + 1200; }
+fillTemplateUI();
 
 // ====================== 開始畫面說明 ======================
 function renderLegend() {
