@@ -262,7 +262,7 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
         <div id="quizConfig" style="display:none">
           <div class="input-row"><span class="grow">答對一題得幾分</span><input type="number" id="quizScore" min="1" max="1000"> 分</div>
           <textarea id="quizText" spellcheck="false" placeholder="一行一題，例如：&#10;1+1等於多少？=2,3,5"></textarea>
-          <div class="note">每行一題，寫法：<b>題目=正確答案,錯誤答案,錯誤答案</b>（第一個是正確答案，用逗號隔開）。只寫正確答案也可以，錯誤答案會自動拿別題的答案來湊。答案建議 4 個字以內，也可以用表情符號。<br>玩法：題目顯示在畫面上方，答案會掉下來，碰到<b>正確答案</b>得分並換下一題，碰到<b>錯的</b>扣 1 顆愛心。</div>
+          <div class="note">每行一題，寫法：<b>題目=正確答案,錯誤答案,錯誤答案</b>（第一個是正確答案，用逗號隔開）。只寫正確答案也可以，錯誤答案會自動拿別題的答案來湊。答案建議 4 個字以內，也可以用表情符號。<br>玩法：題目顯示在畫面上方，答案會掉下來，碰到<b>正確答案</b>得分，碰到<b>錯的</b>扣 1 顆愛心。<b>一關一個題目</b>，下一關換下一題。<br>答案不只一個時，用 <b>|</b> 分開：<b>題目=正確1,正確2|錯誤1,錯誤2</b>，正確的每一個碰到都得分。</div>
           <div class="input-row">
             <button class="small-btn green" onclick="$('quizFile').click()">📂 上傳題目檔</button>
             <label class="inline"><input type="checkbox" id="quizAppend"> 接在現有題目後面（不取代）</label>
@@ -464,8 +464,8 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
 
     <div class="help-card wide"><h3>④ 玩法：題目問答、雙人</h3>
       <ul>
-        <li><b>題目問答</b>：題目在畫面上方，碰<b>正確答案</b>加分並換下一題，碰<b>錯的</b>扣 1 顆愛心。</li>
-        <li><b>雙人</b>：畫面分左右兩半（左玩家 1、右玩家 2），各算各的分數和愛心；題目問答時是<b>搶答</b>。</li>
+        <li><b>題目問答</b>：<b>一關一個題目</b>，題目一直顯示在畫面上方（關卡開始會先放大顯示幾秒）。碰<b>符合的答案</b>加分（可以不只一個），碰<b>錯的</b>扣 1 顆愛心；下一關換下一題。</li>
+        <li><b>雙人</b>：畫面分左右兩半（左玩家 1、右玩家 2），各算各的分數和愛心。</li>
         <li>在「設定 → 玩法」選擇人數和玩法。</li>
       </ul>
     </div>
@@ -488,6 +488,7 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
       <pre>題目=正確答案,錯誤答案,錯誤答案</pre>
       <ul>
         <li><b>第一個答案是正確的</b>，用逗號隔開；答案建議 4 個字以內，也可用表情符號。</li>
+        <li><b>正確答案不只一個</b>：用 <b>|</b> 把正確和錯誤分開，例如 <code>「明」可以拆成哪些部件？=日,月|木,水,火</code>，碰到日或月都得分。</li>
         <li>三種方式：<b>直接打字</b>、<b>📂 上傳題目檔</b>（.txt，或 Excel 另存的 .csv：題目、正確答案、錯誤答案…）、<b>載入範本</b>再修改。</li>
         <li>改好可按「💾 下載目前題目」備份或分享給其他老師。</li>
       </ul>
@@ -513,6 +514,7 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
 const MAX_LIVES = 5;
 const HOVER_TIME_REQUIRED = 3000;
 const COUNTDOWN_SECONDS = 3;
+const QUIZ_INTRO_SECONDS = 6;   // 題目問答：每關開始先顯示題目這麼多秒，再 3、2、1
 const MACARON_COLORS = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF', '#FFC6FF'];
 const STORAGE_KEY = 'bodyAdventureConfig_v1';
 const MP_VERSION = '0.1.1675465747';
@@ -585,6 +587,7 @@ function persistConfig() {
 }
 
 const DEFAULT_QUESTIONS = `1+1等於多少？=2,3,5
+哪些是水果？=🍎,🍌,🍇|🚗,✏️,⚽
 哪一個是動物？=🐶,🍎,⚽
 「大」的相反是=小,多,長
 紅燈亮了要=停,走,跑
@@ -935,13 +938,18 @@ function parseQuestions(text) {
     if (!line || /^[#＃]/.test(line)) return;
     let q, ans;
     const m = line.match(/^(.*?)[=＝](.*)$/);
-    if (m) { q = clean(m[1]); ans = m[2].split(/[,，、\t]/).map(clean).filter(Boolean); }
+    if (m) {
+      q = clean(m[1]);
+      const sp = m[2].split(/[|｜]/), list = x => x.split(/[,，、\t]/).map(clean).filter(Boolean);
+      if (sp.length >= 2) { const cs = list(sp[0]), ws = list(sp[1]); if (q && cs.length) out.push({ q, corrects: cs, wrongs: ws }); return; }
+      ans = list(m[2]);
+    }
     else {   // Excel 另存的 CSV／TSV：題目,正確答案,錯誤答案…
       const parts = line.split(/\t|,|，/).map(clean);
       if (parts[0] === '題目' && /答案/.test(parts[1] || '')) return;   // 跳過 Excel 的標題列
       q = parts[0]; ans = parts.slice(1).filter(Boolean);
     }
-    if (q && ans.length) out.push({ q, correct: ans[0], wrongs: ans.slice(1) });
+    if (q && ans.length) out.push({ q, corrects: [ans[0]], wrongs: ans.slice(1) });
   });
   return out;
 }
@@ -949,22 +957,29 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.fl
 function initQuiz() {
   quiz.list = parseQuestions(config.questionsText);
   if (!quiz.list.length) quiz.list = parseQuestions(DEFAULT_QUESTIONS);
-  quiz.order = []; quiz.pos = 0; quiz.lastIdx = -1; quiz.fb = null;
-  nextQuestion();
+  quiz.order = shuffle(quiz.list.map((_, i) => i)); quiz.lastIdx = -1; quiz.fb = null;
 }
-function nextQuestion() {
-  if (quiz.pos >= quiz.order.length) {
-    quiz.order = shuffle(quiz.list.map((_, i) => i)); quiz.pos = 0;
-    if (quiz.order.length > 1 && quiz.order[0] === quiz.lastIdx) [quiz.order[0], quiz.order[1]] = [quiz.order[1], quiz.order[0]];
+// 每一關一個題目：第 1 關用第 1 題，第 2 關用第 2 題…題目用完就重新洗牌
+function setLevelQuestion() {
+  const n = quiz.list.length;
+  if (level > 1 && (level - 1) % n === 0) {
+    const last = quiz.order[n - 1];
+    quiz.order = shuffle(quiz.list.map((_, i) => i));
+    if (n > 1 && quiz.order[0] === last) [quiz.order[0], quiz.order[1]] = [quiz.order[1], quiz.order[0]];
   }
-  quiz.lastIdx = quiz.order[quiz.pos++];
+  quiz.lastIdx = quiz.order[(level - 1) % n];
   quiz.cur = quiz.list[quiz.lastIdx];
-  fallingObjects = fallingObjects.filter(o => o.baseItem.type === 'heart');   // 換題時，舊答案清掉
 }
 function pickWrong() {
   let pool = quiz.cur.wrongs.slice();
-  if (!pool.length) pool = quiz.list.map(q => q.correct).filter(a => a !== quiz.cur.correct);
+  if (!pool.length) pool = [...new Set(quiz.list.flatMap(q => q.corrects))].filter(a => !quiz.cur.corrects.includes(a));
   if (!pool.length) pool = ['？'];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function pickCorrect(mine) {   // 盡量挑畫面上還沒有的正確答案，讓每種答案都有機會出現
+  const onScreen = mine.filter(o => o.baseItem.type === 'correct').map(o => o.customContent);
+  const fresh = quiz.cur.corrects.filter(a => !onScreen.includes(a));
+  const pool = fresh.length ? fresh : quiz.cur.corrects;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 function rangeOf(p) {
@@ -999,10 +1014,10 @@ function spawnObject(p) {
     const needCorrect = !mine.some(o => o.baseItem.type === 'correct');
     if (!needCorrect && heartOK && rand < heartRate) { baseItem = ITEM_TYPES.HEART; speed = spd('heart'); }
     else {
-      const isCorrect = needCorrect || Math.random() < 0.4;
+      const isCorrect = needCorrect || Math.random() < 0.45;
       baseItem = isCorrect ? ITEM_TYPES.CORRECT : ITEM_TYPES.WRONG;
       speed = spd('star');
-      c = { content: isCorrect ? quiz.cur.correct : pickWrong(), color: getRandomColor() };
+      c = { content: isCorrect ? pickCorrect(mine) : pickWrong(), color: getRandomColor() };
       const n = Array.from(c.content).length;
       width = base * Math.min(2.2, Math.max(1, n * 0.55 + 0.45));
     }
@@ -1040,7 +1055,7 @@ function updateGame(dt, f) {
     const before = Math.ceil(countdownLeft);
     countdownLeft -= dt / 1000;
     const after = Math.ceil(countdownLeft);
-    if (after !== before) playSound(after > 0 ? 'tick' : 'go');
+    if (after !== before && after <= COUNTDOWN_SECONDS) playSound(after > 0 ? 'tick' : 'go');
     players.forEach(p => p.lastSeen = now);
     return;
   }
@@ -1078,9 +1093,9 @@ function updateGame(dt, f) {
       createParticles(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.displayColor);
       if (item.type === 'correct') {
         p.score += config.quizScore; playSound('star');
-        quiz.fb = { text: '✔ 答對了！' + (players.length === 2 ? `（玩家${p.idx + 1}）` : ''), color: '#68d391', until: now + 900 };
-        nextQuestion();
-        break;
+        quiz.fb = { text: `✔ +${config.quizScore}` + (players.length === 2 ? `（玩家${p.idx + 1}）` : ''), color: '#68d391', until: now + 600 };
+        fallingObjects.splice(i, 1);
+        continue;
       }
       fallingObjects.splice(i, 1);
       if (item.damage > 0) { p.lives -= item.damage; triggerDamage(); playSound('bomb'); }
@@ -1152,10 +1167,33 @@ function checkCollision(obj) {
 }
 
 function drawCountdown() {
-  if (countdownLeft <= 0 && countdownLeft > -0.8) {
-    drawBigText('開始！', '#68d391'); return;
-  }
+  if (countdownLeft <= 0 && countdownLeft > -0.8) { drawBigText('開始！', '#68d391'); return; }
+  if (countdownLeft > COUNTDOWN_SECONDS && config.mode === 'quiz' && quiz.cur) { drawQuizIntro(); return; }
   if (countdownLeft > 0) drawBigText(String(Math.ceil(countdownLeft)), '#fbd38d');
+}
+function drawQuizIntro() {
+  const W = gameCanvas.width, H = gameCanvas.height, ff = getComputedStyle(document.body).fontFamily;
+  const boxW = W * 0.82, boxH = Math.min(H * 0.5, 460), x = (W - boxW) / 2, y = H * 0.3;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,.82)'; ctx.strokeStyle = '#fbd38d'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.roundRect(x, y, boxW, boxH, 28); ctx.fill(); ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const fs = Math.max(20, Math.min(W, H) * 0.045);
+  ctx.fillStyle = '#fbd38d'; ctx.font = `900 ${fs}px ${ff}`;
+  ctx.fillText(`第 ${level} 關題目`, W / 2, y + boxH * 0.16);
+  // 題目自動換行並縮小到放得下
+  let size = Math.min(H * 0.1, W * 0.08), lines;
+  const wrap = (t, sz) => { ctx.font = `900 ${sz}px ${ff}`; const out = []; let cur = '';
+    for (const ch of Array.from(t)) { if (ctx.measureText(cur + ch).width > boxW * 0.9 && cur) { out.push(cur); cur = ch; } else cur += ch; }
+    out.push(cur); return out; };
+  lines = wrap(quiz.cur.q, size);
+  while (lines.length * size * 1.25 > boxH * 0.5 && size > 16) { size -= 2; lines = wrap(quiz.cur.q, size); }
+  ctx.fillStyle = '#fff';
+  lines.forEach((ln, i) => ctx.fillText(ln, W / 2, y + boxH * 0.5 + (i - (lines.length - 1) / 2) * size * 1.25));
+  ctx.fillStyle = '#9ae6b4'; ctx.font = `bold ${fs * 0.8}px ${ff}`;
+  const n = quiz.cur.corrects.length;
+  ctx.fillText(n > 1 ? `符合的答案有 ${n} 種，碰到都會得分！` : '碰到正確答案得分，碰到錯的扣愛心', W / 2, y + boxH * 0.86);
+  ctx.restore();
 }
 function drawBigText(t, color) {
   const W = gameCanvas.width, H = gameCanvas.height, size = Math.min(W, H) * 0.32;
@@ -1217,12 +1255,13 @@ function drawHUD() {
     let size = fs * 1.6;
     ctx.font = `900 ${size}px ${ff}`;
     while (ctx.measureText(quiz.cur.q).width > maxW - 40 && size > 14) { size -= 2; ctx.font = `900 ${size}px ${ff}`; }
-    const tw = Math.min(maxW, ctx.measureText(quiz.cur.q).width + 40), bh = size * 1.7, by = two ? pad + fs * 4 : Math.max(64, pad + fs * 1.6);
+    const multi = quiz.cur.corrects.length > 1, tw = Math.min(maxW, ctx.measureText(quiz.cur.q).width + 40), bh = size * (multi ? 2.5 : 1.7), by = two ? pad + fs * 4 : Math.max(64, pad + fs * 1.6);
     const bx = W / 2 - tw / 2;
     ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.strokeStyle = '#fbd38d'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.roundRect(bx, by, tw, bh, size * 0.35); ctx.fill(); ctx.stroke();
     ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
-    ctx.fillText(quiz.cur.q, W / 2, by + bh / 2);
+    ctx.fillText(quiz.cur.q, W / 2, by + (multi ? bh * 0.36 : bh / 2));
+    if (multi) { ctx.font = `bold ${Math.max(13, size * 0.5)}px ${ff}`; ctx.fillStyle = '#9ae6b4'; ctx.fillText(`符合的答案有 ${quiz.cur.corrects.length} 種，都可以碰`, W / 2, by + bh * 0.76); }
   }
   // 答對／提示字
   if (quiz.fb && performance.now() < quiz.fb.until) {
@@ -1281,13 +1320,14 @@ function nextLevel() { level++; startLevel(); }
 function startLevel() {
   gameState = 'PLAYING';
   levelTimeLeft = config.levelDuration;
-  countdownLeft = COUNTDOWN_SECONDS;
+  if (config.mode === 'quiz') { setLevelQuestion(); countdownLeft = QUIZ_INTRO_SECONDS + COUNTDOWN_SECONDS; }
+  else countdownLeft = COUNTDOWN_SECONDS;
   fallingObjects = []; particles = []; flyingHearts = [];
   players.forEach(p => { p.spawnTimer = 0; p.lastSeen = performance.now(); });
   showScreen(null);
   $('pauseBtn').style.display = 'block';
   keepScreenOn();
-  playSound('tick');
+  if (config.mode !== 'quiz') playSound('tick');
 }
 function resultText() {
   if (players.length === 1) return null;
@@ -1357,8 +1397,9 @@ document.addEventListener('visibilitychange', () => {
 const TEMPLATES = [
   { id: 'blank', name: '空白格式（附說明）', desc: '只有格式說明和 2 題示範，自己照著寫。', text:
 `# 全身互動冒險 題目檔
-# 一行一題：題目=正確答案,錯誤答案,錯誤答案
-# 第一個答案一定是正確答案；答案建議 4 個字以內，也可以用表情符號
+# 一行一題：題目=正確答案,錯誤答案,錯誤答案（第一個答案一定是正確答案）
+# 正確答案不只一個：題目=正確1,正確2|錯誤1,錯誤2
+# 答案建議 4 個字以內，也可以用表情符號
 # 以 # 開頭的行是備註，不會當題目
 「大」的相反是=小,多,長
 哪一個是動物？=🐶,🍎,⚽
@@ -1415,6 +1456,31 @@ const TEMPLATES = [
 「口」的注音是=ㄎㄡˇ,ㄕㄡˇ,ㄇㄨˋ
 「手」的注音是=ㄕㄡˇ,ㄎㄡˇ,ㄕㄨㄟˇ
 「木」的注音是=ㄇㄨˋ,ㄏㄨㄛˇ,ㄩㄝˋ
+` },
+  { id: 'multi_bujian', name: '多個答案：組成字的部件', desc: '一個題目有好幾個正確答案，碰到哪個都得分。', text:
+`# 格式：題目=正確答案1,正確答案2|錯誤答案1,錯誤答案2
+# 用 | 把「正確」和「錯誤」分開，正確的每一個碰到都得分
+「明」可以拆成哪些部件？=日,月|木,水,火,口
+「好」可以拆成哪些部件？=女,子|口,木,日
+「休」可以拆成哪些部件？=人,木|日,月,火
+「林」可以拆成哪些部件？=木|日,月,水
+「河」可以拆成哪些部件？=水,可|火,木,日
+「想」可以拆成哪些部件？=木,目,心|日,月,水
+` },
+  { id: 'multi_zhuyin', name: '多個答案：拼出字的注音符號', desc: '找出拼成某個字的所有注音符號。', text:
+`# 格式：題目=正確答案1,正確答案2|錯誤答案1,錯誤答案2
+# 用 | 把「正確」和「錯誤」分開，正確的每一個碰到都得分
+「花」的注音要用哪些符號？=ㄏ,ㄨ,ㄚ|ㄅ,ㄇ,ㄝ
+「大」的注音要用哪些符號？=ㄉ,ㄚ,ˋ|ㄊ,ㄇ,ㄏ
+「山」的注音要用哪些符號？=ㄕ,ㄢ|ㄅ,ㄏ,ㄨ
+「水」的注音要用哪些符號？=ㄕ,ㄨ,ㄟ,ˇ|ㄇ,ㄅ,ㄚ
+` },
+  { id: 'multi_life', name: '多個答案：生活分類', desc: '哪些是水果、動物、交通工具…（表情符號）。', text:
+`# 格式：題目=正確答案1,正確答案2|錯誤答案1,錯誤答案2
+哪些是水果？=🍎,🍌,🍇|🚗,✏️,⚽
+哪些是動物？=🐶,🐱,🐰|🍎,🚗,⚽
+哪些是交通工具？=🚗,🚌,🚲|🐶,🍎,✏️
+哪些可以吃？=🍞,🍎,🍌|✏️,⚽,🚗
 ` },
   { id: 'social', name: '社會技巧：該怎麼做？', desc: '課堂、同儕互動的情境題。', text:
 `# 社會技巧：該怎麼做？
