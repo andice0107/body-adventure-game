@@ -156,7 +156,7 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
         <li>怪獸會從畫面<b>上方、左邊、右邊的邊緣</b>隨機彈出來，位置每次都不一樣，朝玩家丟東西。</li>
         <li>玩家<b>揮手或搖頭</b>，<b>用力快速地揮</b>到飛來的東西，才會把它<b>打回去</b>（只是身體碰到、輕輕晃不算）；打回去的東西碰到怪獸，怪獸就被打敗消失。</li>
         <li>東西飛到玩家身上，會扣 1 顆愛心；愛心用完遊戲結束。過關補 1 顆愛心。</li>
-        <li><b>一般關</b>：打敗指定數量的怪獸就過關（畫面左上顯示 🎯 進度）。怪獸待一下沒被打到會自己離開。</li>
+        <li><b>一般關</b>：打敗指定數量的怪獸就過關（畫面左下顯示 🎯 進度）。怪獸待一下沒被打到會自己離開。</li>
         <li><b>BOSS 關</b>（預設每 5 關一次）：BOSS 位置無法預測，出現後會<b>一直丟東西</b>，直到被打回去的東西打中，才會退場，隔一下換個地方再出現。累計打中指定次數（👑 進度）才過關。</li>
         <li><b>越後面越難</b>：丟出來的東西越來越快、同時丟東西的怪獸越來越多。BOSS 圖案輪完一輪後，會從頭再來第二輪：BOSS 丟得更快、出現得更快，而且同時有 2 隻 BOSS。關卡沒有上限。</li>
         <li>BOSS 丟出來的東西<b>又大又快，而且會左右蛇行轉彎</b>，要<b>揮得更用力</b>才打得回去；第一個 BOSS 要打中 <b>10 次</b>才過關，被打得越多次，丟的數量越多。同一關也會越來越快、越來越多。</li>
@@ -361,7 +361,7 @@ const SLOT_ORDER = [3, 1, 5, 0, 6, 2, 4];
 const isBossLevel = L => L % config.bossEvery === 0;
 const speedMul = L => Math.min(3.2, 1 + 0.06 * Math.min(L - 1, 24) + 0.02 * Math.max(0, L - 25));   // 東西飛行速度
 const activeMax = L => Math.min(6, 1 + Math.floor((L - 1) / 4));                                      // 同時丟東西的敵人數
-const killTarget = L => Math.min(14, 3 + Math.floor((L - 1) / 2));                                    // 要打倒幾隻才過關
+const killTarget = L => Math.min(30, 7 + Math.floor((L - 1) * 0.8));                                    // 要打倒幾隻才過關
 const throwInterval = L => Math.max(0.9, 2.2 - 0.06 * L);                                             // 敵人丟東西的間隔（秒）
 function getBossInfo(L) {
   const b = Math.max(0, Math.round(L / config.bossEvery) - 1), faces = config.boss.length ? config.boss : ['🐲'], round = Math.floor(b / faces.length);
@@ -488,10 +488,10 @@ function update(dt, g) {
   if (!boss) {
     spawnCd -= dt;
     const alive = enemies.filter(e => e.state === 'in' || e.state === 'idle').length;
-    if (spawnCd <= 0 && alive < Math.min(6, activeMax(level) + (level >= 4 && progress() >= 0.5 ? 1 : 0)) && killed + alive < K) {
+    if (spawnCd <= 0 && alive < Math.min(8, activeMax(level) + Math.floor(progress() * 2.5)) && killed + alive < K) {
       const size = g.esize, pos = edgePos(size), faces = config.enemy.length ? config.enemy : ['👻'];
       enemies.push({ boss: false, face: faces[Math.floor(Math.random() * faces.length)], size, x: pos.x, y: pos.y, state: 'in', t: 0, cool: 0.9, throwsLeft: level < 10 ? 2 : 3, interval: throwInterval(level) * tMul * (1 - 0.3 * progress()) * (0.85 + Math.random() * 0.3), finishing: false });
-      spawnCd = Math.max(0.5, 1.8 - 0.04 * level) * (0.8 + Math.random() * 0.4);
+      spawnCd = Math.max(0.4, 1.5 - 0.04 * level - 0.5 * progress()) * (0.8 + Math.random() * 0.4);
     }
   }
   for (const e of enemies) {
@@ -555,7 +555,7 @@ function spawnProj(e) {
   const dmg = e.boss && bossInfo.round * 6 + Math.round(level / config.bossEvery) >= 3 ? 2 : 1;
   for (let i = 0; i < shots; i++) {
     const a = base + (i - (shots - 1) / 2) * spread;
-    projs.push({ kind: 'in', x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, ch: list[Math.floor(Math.random() * list.length)], color: MACARON[Math.floor(Math.random() * 8)], from: e, rot: 0, big: !!e.boss, scale: e.boss ? 1.9 : 1, dmg, curve: !!e.boss, ang: a, spd, t: 0, amp: 0.45 + 0.12 * ph + 0.1 * bossInfo.round, freq: 3 + ph * 0.6 + Math.random(), wph: Math.random() * 6.28 + i, turn: 1.2 + 0.3 * ph });
+    projs.push({ kind: 'in', x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, ch: list[Math.floor(Math.random() * list.length)], color: MACARON[Math.floor(Math.random() * 8)], from: e, rot: 0, big: !!e.boss, scale: e.boss ? 1.9 : 1, dmg, curve: !!e.boss, ang: a, spd, t: 0, amp: 0.45 + 0.12 * ph + 0.1 * (bossInfo ? bossInfo.round : 0), freq: 3 + ph * 0.6 + Math.random(), wph: Math.random() * 6.28 + i, turn: 1.2 + 0.3 * ph });
   }
   playSound('throw');
 }
