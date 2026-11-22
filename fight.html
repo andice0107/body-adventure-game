@@ -630,7 +630,7 @@ function update(dt, g) {
       e.cool -= dt;
       if (e.cool <= 0) {
         if (e.finishing) { e.state = 'out'; e.t = 0; }
-        else if (spawnProj(e) === false) { e.cool = 0.15; } else { e.cool = Math.max(config.quizMode ? 1.0 : 0, e.interval * (e.boss && !e.fake ? 1 - 0.12 * Math.min(3, Math.floor(progress() * 4)) : 1)) * (e.powered ? 0.6 : 1); if (!e.boss && --e.throwsLeft <= 0) { e.finishing = true; e.cool = 0.9; } }
+        else if (spawnProj(e) === false) { e.cool = 0.15; } else { e.cool = Math.max(config.quizMode ? 0.5 : 0, e.interval * (e.boss && !e.fake ? 1 - 0.12 * Math.min(3, Math.floor(progress() * 4)) : 1)) * (e.powered ? 0.6 : 1); if (!e.boss && --e.throwsLeft <= 0) { e.finishing = true; e.cool = 0.9; } }
       }
     }
     else if (e.state === 'out') { if (e.t >= 0.4) { if (e.boss) { e.state = 'wait'; e.t = 0; } else e.state = 'gone'; } }
@@ -699,8 +699,10 @@ function spawnProj(e) {
   const pw = !!e.powered, rb = e.boss && !e.fake, g = geo(), list = config.attack.length ? config.attack : ['💣'];
   const ph = rb ? Math.min(3, Math.floor(progress() * 4)) : 0;          // BOSS 打越多次，丟法越兇
   const qz = config.quizMode && quiz.cur;
-  if (qz && projs.some(q => q.from === e && q.kind === 'in' && Math.hypot(q.x - e.x, q.y - e.y) < g.psize * 3.4)) return false;   // 同一隻連丟時，前一個要先飛遠，兩個不能太靠近
-  const shots = rb ? Math.min(qz ? 3 : 5, 1 + ph + (bossInfo.round >= 1 ? 1 : 0)) : pw ? 2 : 1;
+  // 題目模式：所有東西「到達玩家的時間」要差一段時間，路線上不會重疊，玩家才有空間、時間去揮
+  const gap = Math.max(0.8, 1.35 - 0.02 * level), etaNew = Math.hypot(g.tx - e.x, g.ty - e.y) / Math.max(1, projSpeed(g, e) * (rb ? 1.8 + 0.15 * ph : 1));
+  if (qz && projs.some(q => q.kind === 'in' && !q.bounce && Math.abs(Math.hypot(g.tx - q.x, g.ty - q.y) / Math.max(1, Math.hypot(q.vx, q.vy)) - etaNew) < gap)) return false;
+  const shots = qz ? 1 : rb ? Math.min(5, 1 + ph + (bossInfo.round >= 1 ? 1 : 0)) : pw ? 2 : 1;
   const spd = projSpeed(g, e) * (rb ? 1.8 + 0.15 * ph : 1);
   const ax = g.tx + (Math.random() - 0.5) * g.m * 0.16, ay = g.ty + (Math.random() - 0.5) * g.m * 0.1;
   const base = Math.atan2(ay - e.y, ax - e.x), spread = qz ? 0.55 : 0.2;
@@ -708,7 +710,7 @@ function spawnProj(e) {
   const bounceN = projs.filter(q => q.bounce).length, bcap = 5 + (rb ? bossInfo.round * 2 : 0);
   for (let i = 0; i < shots; i++) {
     const a = base + (i - (shots - 1) / 2) * spread;
-    if (rb && bounceN + projs.filter(q => q.bounce).length - bounceN < bcap && Math.random() < 0.3 + 0.1 * ph) {   // 反彈型：不一定朝玩家，會在牆上彈來彈去
+    if (rb && bounceN + projs.filter(q => q.bounce).length - bounceN < (qz ? 1 : bcap) && (!qz || !projs.some(q => Math.hypot(q.x - e.x, q.y - e.y) < g.psize * 4)) && Math.random() < 0.3 + 0.1 * ph) {   // 反彈型：不一定朝玩家，會在牆上彈來彈去
       const tx = g.W * (0.1 + Math.random() * 0.8), ty = g.H * (0.2 + Math.random() * 0.5), ba = Math.atan2(ty - e.y, tx - e.x);
       const it = itemOf();
       projs.push({ kind: 'in', bounce: true, x: e.x, y: e.y, vx: Math.cos(ba) * spd, vy: Math.sin(ba) * spd, ch: it ? it.ch : list[Math.floor(Math.random() * list.length)], wrong: !!(it && it.wrong), bubble: !!it, color: it ? MACARON[Math.floor(Math.random() * 8)] : '#c4b5fd', from: e, rot: 0, big: true, scale: 1.9, dmg, life: 0 });
