@@ -110,6 +110,7 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
 #pauseBtn { top: 12px; white-space: nowrap; left: 50%; transform: translateX(-50%); display: none; }
 #fsBtn { right: 12px; bottom: 12px; }
 #helpBtn { left: 12px; bottom: 12px; display: none; background: rgba(43,108,176,.85); }
+#fightBtn { left: 190px; bottom: 12px; display: none; background: rgba(192,86,33,.85); }
 #settingsGear { left: 12px; bottom: 12px; }
 #soundTip {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 1100;
@@ -226,6 +227,7 @@ p  { font-size: clamp(18px, 3.4vh, 40px); color: #f7fafc; line-height: 1.45; mar
   <button id="pauseBtn" class="teacher-btn" onclick="pauseGame()">⏸ 暫停</button>
   <button id="fsBtn" class="teacher-btn" onclick="toggleFullscreen()">⛶ 全螢幕</button>
   <button id="helpBtn" class="teacher-btn" onclick="openHelp()">📖 遊戲說明</button>
+  <button id="fightBtn" class="teacher-btn" onclick="location.href='fight.html'">👋 揮手反擊（新）</button>
   <div id="soundTip">🔈 老師請先點一下畫面，才會有聲音</div>
 
   <!-- 開始畫面 -->
@@ -862,6 +864,7 @@ function showScreen(id) {
   hoverLockUntil = performance.now() + 1200;   // 換畫面後 1.2 秒內不偵測，避免手還舉著就誤觸
   $('pauseBtn').style.display = id ? 'none' : (gameState === 'PLAYING' ? 'block' : 'none');
   $('helpBtn').style.display = id === 'startScreen' ? 'block' : 'none';
+  $('fightBtn').style.display = id === 'startScreen' ? 'block' : 'none';
   $('fsBtn').style.display = (id && id !== 'settingsScreen' && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) ? 'block' : 'none';
   if (id !== null) hideAbs();
 }

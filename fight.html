@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>揮手反擊</title>
+<style>
+:root { --font: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", Arial, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a202c; overflow: hidden; font-family: var(--font); color: #fff; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+#gameContainer { position: fixed; inset: 0; }
+#webcamVideo { position: absolute; top: 0; left: 0; width: 2px; height: 2px; opacity: 0; pointer-events: none; }
+#bgCanvas, #gameCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+#bgCanvas { z-index: 1; filter: blur(6px) brightness(.5); }
+#gameCanvas { z-index: 20; }
+.damage-effect { position: absolute; inset: 0; pointer-events: none; z-index: 25; transition: box-shadow .1s; }
+.damage-active { box-shadow: inset 0 0 60px 26px rgba(229,62,62,.85); }
+
+.overlay-screen { position: absolute; inset: 0; z-index: 50; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 16px; background: rgba(0,0,0,.55); gap: clamp(10px, 2.5vh, 28px); }
+.overlay-screen.active { display: flex; }
+h1 { margin: 0; color: #90cdf4; font-size: clamp(32px, 8vh, 90px); text-shadow: 0 3px 0 #000; }
+h2 { margin: 0; color: #fff; font-size: clamp(30px, 8vh, 80px); text-shadow: 3px 3px 0 #000; }
+p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shadow: 0 2px 0 #000; }
+.board { background: rgba(0,0,0,.65); border: 3px solid rgba(255,255,255,.6); border-radius: 20px; padding: clamp(10px, 2vh, 24px) clamp(18px, 3vw, 48px); font-size: clamp(18px, 3.4vh, 40px); line-height: 1.6; font-weight: bold; white-space: pre-line; }
+.btn-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.big-btn { font-family: var(--font); font-weight: 900; font-size: clamp(22px, 4vh, 44px); padding: .5em 1.2em; border: 4px solid rgba(255,255,255,.7); border-radius: 18px; color: #fff; background: #2b6cb0; cursor: pointer; }
+.big-btn.green { background: #2f855a; } .big-btn.gray { background: #4a5568; } .big-btn.orange { background: #c05621; }
+.teacher-btn { position: absolute; z-index: 1100; font-family: var(--font); font-size: clamp(16px, 2.4vh, 26px); font-weight: bold; padding: 10px 18px; border-radius: 14px; border: 2px solid rgba(255,255,255,.7); background: rgba(0,0,0,.55); color: #fff; cursor: pointer; }
+#pauseBtn { top: 12px; right: 12px; display: none; }
+#fsBtn { right: 12px; bottom: 12px; }
+#soundTip { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 1100; background: #fbd38d; color: #2d3748; font-weight: bold; padding: 10px 18px; border-radius: 14px; font-size: clamp(15px, 2.2vh, 24px); display: none; pointer-events: none; white-space: nowrap; }
+
+/* 設定、說明 */
+.panel-screen { position: fixed; inset: 0; z-index: 1200; background: #111827; display: none; flex-direction: column; text-align: left; -webkit-user-select: text; user-select: text; }
+.panel-screen.active { display: flex; }
+.panel-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; background: #1a202c; border-bottom: 2px solid #4a5568; }
+.panel-head h2 { flex: 1; font-size: clamp(20px, 3.4vh, 34px); color: #90cdf4; text-shadow: none; }
+.panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: grid; gap: 16px; align-content: start; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); font-size: clamp(16px, 2.2vh, 22px); line-height: 1.7; }
+.card { background: #1f2937; border: 2px solid #374151; border-radius: 14px; padding: 14px 18px; min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h3 { margin: 0 0 8px; color: #90cdf4; font-size: 1.2em; }
+.card ul { margin: 6px 0; padding-left: 1.4em; } .card li { margin: 4px 0; }
+.card table { border-collapse: collapse; width: 100%; } .card td, .card th { border: 1px solid #4b5563; padding: 6px 10px; text-align: left; } .card th { background: #111827; color: #90cdf4; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.row .grow { flex: 1; min-width: 8em; }
+.card input[type=number], .card input[type=text], .card select { font-family: var(--font); font-size: 1em; padding: 8px 10px; border-radius: 8px; border: none; min-width: 0; }
+.card input[type=number] { width: 5em; text-align: center; } .card input[type=text] { flex: 1 1 100%; }
+.card input[type=checkbox] { width: 24px; height: 24px; vertical-align: middle; }
+.note { color: #cbd5e0; font-size: .85em; margin-top: 8px; }
+.small-btn { font-family: var(--font); font-size: clamp(16px, 2.2vh, 22px); font-weight: bold; padding: 10px 18px; border: none; border-radius: 10px; cursor: pointer; color: #fff; background: #4299e1; }
+.small-btn.green { background: #38a169; } .small-btn.gray { background: #718096; }
+
+#loading { position: absolute; inset: 0; z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; padding: 24px; text-align: center; background: #1a202c; }
+#loadingBox { background: #fbd38d; color: #2d3748; border-radius: 18px; padding: 24px 32px; font-size: clamp(20px, 3.4vh, 36px); font-weight: bold; line-height: 1.5; animation: pulse 1.5s infinite; }
+#loadingBox.error { background: #fed7d7; color: #742a2a; animation: none; text-align: left; }
+#reloadBtn { display: none; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .75; } }
+</style>
+</head>
+<body>
+<div id="loading">
+  <div id="loadingBox">🤖 正在啟動 AI 影像系統…<br>請按「允許」使用攝影機</div>
+  <button id="reloadBtn" class="small-btn" onclick="location.reload()">🔄 重新整理再試一次</button>
+</div>
+
+<div id="gameContainer">
+  <video id="webcamVideo" autoplay playsinline muted></video>
+  <canvas id="bgCanvas"></canvas>
+  <canvas id="gameCanvas"></canvas>
+  <div id="damageOverlay" class="damage-effect"></div>
+
+  <button id="pauseBtn" class="teacher-btn" onclick="pauseGame()">⏸ 暫停</button>
+  <button id="fsBtn" class="teacher-btn" onclick="toggleFullscreen()">⛶ 全螢幕</button>
+  <div id="soundTip">🔈 老師請先點一下畫面，才會有聲音</div>
+
+  <div id="startScreen" class="overlay-screen">
+    <h1>👋 揮手反擊</h1>
+    <p>怪獸會朝你丟東西！<br>站在下方正中間，<b>揮手或搖頭</b>把它們打回去</p>
+    <div class="board">⚠️ 不要亂揮！亂揮會手痠暈眩，暫時無法反擊</div>
+    <div class="btn-row">
+      <button class="big-btn green" onclick="startGame()">▶ 開始</button>
+      <button class="big-btn gray" onclick="openPanel('settingsScreen')">⚙️ 設定</button>
+      <button class="big-btn" onclick="openPanel('helpScreen')">📖 說明</button>
+      <a class="big-btn gray" href="index.html" style="text-decoration:none">← 接物遊戲</a>
+    </div>
+  </div>
+
+  <div id="pauseScreen" class="overlay-screen">
+    <h2>⏸ 暫停中</h2>
+    <div class="btn-row">
+      <button class="big-btn green" onclick="resumeGame()">▶ 繼續</button>
+      <button class="big-btn gray" onclick="toMenu()">🏠 回主畫面</button>
+    </div>
+  </div>
+
+  <div id="levelScreen" class="overlay-screen">
+    <p style="color:#fbd38d;font-weight:900">🎉 打敗所有怪獸了！</p>
+    <h2 id="levelTitle">第 1 關</h2>
+    <div class="board" id="levelBoard"></div>
+    <p id="levelHint">站回中間，或按按鈕進入下一關</p>
+    <div class="btn-row">
+      <button class="big-btn green" onclick="nextLevel()">⏭ 下一關</button>
+      <button class="big-btn gray" onclick="toMenu()">🏠 回主畫面</button>
+    </div>
+  </div>
+
+  <div id="overScreen" class="overlay-screen">
+    <h2 style="color:#fc8181">遊戲結束</h2>
+    <div class="board" id="overBoard"></div>
+    <div class="btn-row">
+      <button class="big-btn orange" onclick="startGame()">🔁 再玩一次</button>
+      <button class="big-btn gray" onclick="toMenu()">🏠 回主畫面</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div id="settingsScreen" class="panel-screen">
+  <div class="panel-head">
+    <h2>⚙️ 設定</h2>
+    <button class="small-btn gray" onclick="resetConfig()">恢復預設值</button>
+    <button class="small-btn green" onclick="saveSettings()">✔ 儲存並返回</button>
+  </div>
+  <div class="panel-body">
+    <div class="card">
+      <h3>🎮 難易度</h3>
+      <div class="row"><span class="grow">開始有幾顆愛心</span><input type="number" id="cLives" min="1" max="5"> 顆</div>
+      <div class="row"><span class="grow">每隻怪獸要打幾下</span><input type="number" id="cHp" min="1" max="10"> 下</div>
+      <div class="row"><span class="grow">最多幾隻怪獸</span><input type="number" id="cEnemyMax" min="1" max="7"> 隻</div>
+      <div class="row"><span class="grow">丟東西的頻率</span><select id="cThrow"><option value="slow">慢</option><option value="normal">中</option><option value="fast">快</option></select></div>
+      <div class="row"><span class="grow">東西飛行速度</span><select id="cSpeed"><option value="slow">慢</option><option value="normal">中</option><option value="fast">快</option></select></div>
+    </div>
+    <div class="card">
+      <h3>🙅 防亂揮</h3>
+      <div class="row"><span class="grow">亂揮容忍度</span><select id="cTol"><option value="loose">寬鬆（可以多揮一點）</option><option value="normal">普通</option><option value="strict">嚴格（很快就手痠）</option></select></div>
+      <div class="row"><span class="grow">暈眩第幾次起要扣 1 顆愛心</span><input type="number" id="cStunPenalty" min="1" max="10"> 次（填 10 代表不扣）</div>
+      <div class="note">畫面上方的「💪 手痠條」會顯示亂揮累積的程度，滿了就暈眩。在東西附近揮動不算亂揮。</div>
+    </div>
+    <div class="card">
+      <h3>📍 站位</h3>
+      <div class="row"><span class="grow">站在下方中間幾秒才開始</span><input type="number" id="cStand" min="1" max="10" step="0.5"> 秒</div>
+      <div class="row"><label><input type="checkbox" id="cRed"> 在身上顯示紅色</label></div>
+    </div>
+    <div class="card wide">
+      <h3>🎨 內容（一次輸入多個，會自動拆開；可以用表情符號或文字）</h3>
+      <div class="row"><span>怪獸丟出來的東西</span><input type="text" id="cAttack"></div>
+      <div class="row"><span>怪獸的圖案</span><input type="text" id="cEnemy"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 說明 -->
+<div id="helpScreen" class="panel-screen">
+  <div class="panel-head"><h2>📖 遊戲說明</h2><button class="small-btn green" onclick="closePanel()">✔ 回到遊戲</button></div>
+  <div class="panel-body">
+    <div class="card wide"><h3>🎯 怎麼玩</h3>
+      <ul>
+        <li>玩家（<b>一個人</b>）站在鏡頭前、畫面<b>下方正中間</b>的框框裡，保持約 2 秒，遊戲就會開始。小幅度的位置誤差沒關係。</li>
+        <li>上方的怪獸會從<b>四面八方</b>丟東西，朝玩家飛過來。</li>
+        <li>玩家<b>揮手或搖頭</b>，碰到飛來的東西，就會把它打回去，打中怪獸就扣怪獸的血。怪獸血打完就被打敗；<b>全部打敗就過關</b>。</li>
+        <li>東西飛到玩家身上，會扣 1 顆愛心；愛心用完遊戲結束。過關會補 1 顆愛心。</li>
+        <li>怪獸偶爾會一起「大招」，同時丟出一排東西，要小心。</li>
+        <li>站太久離開中間，遊戲會暫停，站回中間就繼續。</li>
+      </ul>
+    </div>
+    <div class="card wide"><h3>🙅 為什麼不能亂揮？</h3>
+      <ul>
+        <li>只有<b>在東西附近揮動</b>才有用；單純碰到、不動，不算反擊。</li>
+        <li>在沒有東西的地方亂揮，上方的「💪 手痠條」會慢慢變滿（小幅度揮動不會增加太多，會慢慢恢復）。</li>
+        <li>手痠條快滿時會變紅並出現警告。滿了就<b>暈眩 3 秒</b>，這段時間不能反擊。</li>
+        <li>每暈眩一次，下一次暈眩時間多 1 秒（最多 8 秒）；暈眩到一定次數還會扣愛心。</li>
+        <li>成功反擊會讓手痠條下降，所以「看準了再揮」最划算。</li>
+        <li>老師可以在「設定」調整容忍度和扣愛心的規則。</li>
+      </ul>
+    </div>
+    <div class="card"><h3>老師控制</h3>
+      <ul><li>上方「⏸ 暫停」或空白鍵暫停。</li><li>右下角可切換全螢幕。</li><li>先點一下畫面聲音才會出來。</li></ul>
+    </div>
+    <div class="card"><h3>常見問題</h3>
+      <ul>
+        <li><b>一直偵測不到站位</b>：站遠一點讓上半身入鏡、燈光打亮、背景單純。</li>
+        <li><b>攝影機被封鎖</b>：網址列左邊圖示改「允許」後重新整理。</li>
+        <li>建議<b>橫放</b>平板或使用電腦，畫面比較寬。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<canvas id="maskCanvas" style="display:none"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+const gameCanvas = $('gameCanvas'), ctx = gameCanvas.getContext('2d');
+const bgCanvas = $('bgCanvas'), bgCtx = bgCanvas.getContext('2d');
+const maskCanvas = $('maskCanvas'), maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
+const personCanvas = document.createElement('canvas'), personCtx = personCanvas.getContext('2d');
+const videoElement = $('webcamVideo');
+const damageOverlay = $('damageOverlay');
+const FONT = getComputedStyle(document.body).fontFamily;
+const MACARON = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF', '#FFC6FF'];
+const MAX_LIVES = 5, STORAGE_KEY = 'bodyFightConfig_v1', MP_VERSION = '0.1.1675465747';
+const MP_SOURCES = ['./mediapipe/', `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@${MP_VERSION}/`, `https://unpkg.com/@mediapipe/selfie_segmentation@${MP_VERSION}/`];
+
+// ================= 設定 =================
+const DEFAULT_CONFIG = {
+  lives: 3, hp: 3, enemyMax: 7, throwRate: 'normal', speed: 'normal',
+  tol: 'normal', stunPenalty: 3, standSeconds: 2, redTint: true,
+  attack: ['💣', '🔥', '⚡', '🌶️', '🪨'], enemy: ['👾', '👹', '🤖', '👻', '🐲', '🦖', '🧟']
+};
+let config = loadConfig();
+function loadConfig() {
+  const base = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); if (s && typeof s === 'object') Object.assign(base, s); } catch (e) {}
+  return base;
+}
+const MUL = { throw: { slow: 1.4, normal: 1, fast: 0.7 }, speed: { slow: 0.8, normal: 1, fast: 1.25 } };
+const DECAY = { loose: 14, normal: 10, strict: 7 };   // 手痠條每秒自然下降
+const FLAIL_GAIN = 200;                                // 亂揮累積係數（以「身體大小」為單位，離鏡頭遠近都差不多）
+const splitChars = v => ((window.Intl && Intl.Segmenter) ? [...new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(v)].map(s => s.segment) : Array.from(v)).filter(c => c.trim());
+
+// ================= 狀態 =================
+let state = 'LOADING';  // LOADING MENU CALIB PLAYING AWAY PAUSED LEVEL_DONE GAME_OVER
+let level = 1, score = 0, lives = 3, standNeeded = 2;
+let enemies = [], projs = [], particles = [], pending = [], floaters = [];
+let flail = 0, stunLeft = 0, stunCount = 0, warned = false, volleyTimer = 10, doneTimer = 0, lockUntil = 0;
+let stats = { swats: 0, stuns: 0, warns: 0, hits: 0 };
+let standHold = 0, outTimer = 0, countdown = 0, awayTimer = 0;
+let maskW = 160, maskH = 90, cur = null, prev = null, chg = null, chgIdx = null, chgCount = 0;
+let body = { present: false, medianX: 0.5, count: 0 };
+let newMotion = false, lastResultTs = 0, motionDt = 0.033;
+let isModelLoaded = false, personReady = false, lastTs = 0, returnState = 'MENU';
+
+// ================= 音效 =================
+let audioCtx = null;
+function unlockAudio() {
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const b = audioCtx.createBuffer(1, 1, 22050), s = audioCtx.createBufferSource(); s.buffer = b; s.connect(audioCtx.destination); s.start(0);
+  } catch (e) {}
+  $('soundTip').style.display = 'none';
+}
+window.addEventListener('pointerdown', unlockAudio, { passive: true });
+window.addEventListener('keydown', unlockAudio);
+function tone(type, f0, f1, dur, vol) {
+  if (!audioCtx || audioCtx.state !== 'running') return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+  const t = audioCtx.currentTime; o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur); o.start(t); o.stop(t + dur);
+}
+function playSound(k) {
+  ({ throw: () => tone('triangle', 300, 200, .15, .08), swat: () => tone('square', 500, 1100, .15, .12), hit: () => tone('sawtooth', 600, 300, .15, .14),
+     hurt: () => tone('sawtooth', 160, 50, .35, .25), warn: () => { tone('square', 800, 0, .1, .1); }, stun: () => tone('sawtooth', 400, 80, .6, .2),
+     win: () => { tone('sine', 523, 1046, .5, .2); }, ko: () => tone('square', 300, 900, .35, .15), tick: () => tone('square', 660, 0, .12, .1), go: () => tone('square', 990, 0, .3, .12) })[k]?.();
+}
+let wakeLock = null;
+async function keepScreenOn() { try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => wakeLock = null); } } catch (e) {} }
+function toggleFullscreen() { const d = document, el = d.documentElement; try { if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d); else (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch (e) {} }
+if (!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) $('fsBtn').style.display = 'none';
+
+// ================= 畫布 =================
+function resizeCanvas() {
+  const w = innerWidth, h = innerHeight;
+  gameCanvas.width = personCanvas.width = w; gameCanvas.height = personCanvas.height = h;
+  maskW = Math.max(60, Math.round(Math.sqrt(19200 * w / h))); maskH = Math.max(40, Math.round(19200 / maskW));
+  maskCanvas.width = maskW; maskCanvas.height = maskH;
+  bgCanvas.width = 192; bgCanvas.height = Math.max(40, Math.round(192 * h / w));
+  cur = new Uint8Array(maskW * maskH); prev = null; chg = new Uint8Array(maskW * maskH); chgIdx = new Int32Array(maskW * maskH);
+}
+addEventListener('resize', resizeCanvas); resizeCanvas();
+function cropRect(sw, sh) { const scr = innerWidth / innerHeight, src = sw / sh; if (src > scr) { const w = sh * scr; return { sx: (sw - w) / 2, sy: 0, sw: w, sh }; } const h = sw / scr; return { sx: 0, sy: (sh - h) / 2, sw, sh: h }; }
+
+// ================= 攝影機與 AI =================
+function showLoadError(html) { const b = $('loadingBox'); b.className = 'error'; b.innerHTML = html; $('reloadBtn').style.display = 'inline-block'; $('loading').style.display = 'flex'; }
+const loadScript = src => new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.crossOrigin = 'anonymous'; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
+async function loadMediaPipe() { for (const base of MP_SOURCES) { if (base.startsWith('./') && location.protocol === 'file:') continue; try { await loadScript(base + 'selfie_segmentation.js'); if (window.SelfieSegmentation) return base; } catch (e) {} } return null; }
+async function startCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showLoadError('😢 這個瀏覽器沒辦法使用攝影機。<br><br>請改用 <b>Chrome</b>（電腦）或 <b>Safari</b>（iPad），並用 <b>https://</b> 開頭的網址打開。'); return null; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false });
+    videoElement.srcObject = stream;
+    await new Promise(r => { if (videoElement.readyState >= 1) r(); else videoElement.onloadedmetadata = r; });
+    await videoElement.play().catch(() => {}); return stream;
+  } catch (err) {
+    const n = err && err.name;
+    if (n === 'NotAllowedError' || n === 'SecurityError') showLoadError('📷 攝影機被「封鎖」了。<br><br><b>Chrome：</b>點網址列左邊的圖示 → 攝影機改成「允許」→ 重新整理。<br><b>iPad：</b>設定 → Safari → 相機 → 選「允許」。');
+    else if (n === 'NotFoundError' || n === 'OverconstrainedError') showLoadError('📷 找不到攝影機，請確認攝影機有接好，然後重新整理。');
+    else if (n === 'NotReadableError' || n === 'AbortError') showLoadError('📷 攝影機正在被別的程式使用。<br><br>請先關掉 Meet、Teams、Zoom 或其他也開著攝影機的分頁，再重新整理。');
+    else showLoadError('📷 攝影機啟動失敗（' + (n || '未知原因') + '），請重新整理再試一次。');
+    return null;
+  }
+}
+async function init() {
+  const [stream, mpBase] = await Promise.all([startCamera(), loadMediaPipe()]);
+  if (!stream) return;
+  if (!mpBase) { showLoadError('🌐 AI 影像程式下載失敗。<br><br>請確認網路有連上，再重新整理。'); return; }
+  $('loadingBox').innerHTML = '🤖 攝影機開好了！<br>AI 正在準備中，第一次會比較久…';
+  const seg = new SelfieSegmentation({ locateFile: f => mpBase + f });
+  seg.setOptions({ modelSelection: 1, selfieMode: false }); seg.onResults(onResults);
+  const slow = setTimeout(() => { if (!isModelLoaded) $('loadingBox').innerHTML = '🐢 網路比較慢，AI 還在下載（約 6MB）…<br>請再等一下。'; }, 15000);
+  const fail = setTimeout(() => { if (!isModelLoaded) showLoadError('⏳ AI 等太久都沒有回應。請重新整理；一直這樣請改用 Chrome。'); }, 60000);
+  window.__clear = () => { clearTimeout(slow); clearTimeout(fail); };
+  let busy = false;
+  const pump = async () => { if (!busy && videoElement.readyState >= 2) { busy = true; try { await seg.send({ image: videoElement }); } catch (e) {} busy = false; } requestAnimationFrame(pump); };
+  pump();
+}
+
+function onResults(results) {
+  const mask = results.segmentationMask, img = results.image;
+  if (!isModelLoaded) {
+    isModelLoaded = true; if (window.__clear) window.__clear();
+    $('loading').style.display = 'none'; showScreen('startScreen'); state = 'MENU';
+    if (!audioCtx || audioCtx.state !== 'running') $('soundTip').style.display = 'block';
+  }
+  const vw = img.videoWidth || img.width, vh = img.videoHeight || img.height, mw = mask.width || vw, mh = mask.height || vh;
+  const r = cropRect(vw, vh);
+  const msx = r.sx * mw / vw, msy = r.sy * mh / vh, msw = r.sw * mw / vw, msh = r.sh * mh / vh;
+
+  maskCtx.clearRect(0, 0, maskW, maskH);
+  maskCtx.save(); maskCtx.translate(maskW, 0); maskCtx.scale(-1, 1);
+  maskCtx.drawImage(mask, msx, msy, msw, msh, 0, 0, maskW, maskH); maskCtx.restore();
+  let data; try { data = maskCtx.getImageData(0, 0, maskW, maskH).data; } catch (e) { return; }
+  // 取出人像（0/1）、和上一張比較找出「在動的地方」
+  const n = maskW * maskH; let cnt = 0, changed = 0; const col = new Int32Array(maskW);
+  for (let i = 0; i < n; i++) {
+    const v = data[i * 4]; if (prev) { const d = v > prev[i] ? v - prev[i] : prev[i] - v; if (d > 90) { chg[i] = 1; chgIdx[changed++] = i; } else chg[i] = 0; } else chg[i] = 0;
+    if (v > 128) { cnt++; col[i % maskW]++; }
+    cur[i] = v;
+  }
+  prev = prev || new Uint8Array(n); prev.set(cur);
+  chgCount = changed;
+  // 身體位置：用「人像左右的中位數」，手臂亂動也不會讓位置跑掉太多
+  body.count = cnt; body.present = cnt > n * 0.02;
+  if (body.present) { let acc = 0, half = cnt / 2, x = 0; for (; x < maskW; x++) { acc += col[x]; if (acc >= half) break; } body.medianX = x / maskW; }
+  const now = performance.now(); motionDt = Math.min(0.2, Math.max(0.01, (now - (lastResultTs || now - 33)) / 1000)); lastResultTs = now; newMotion = true;
+
+  drawMirrored(bgCtx, img, vw, vh, bgCanvas.width, bgCanvas.height, r);
+  const W = personCanvas.width, H = personCanvas.height;
+  personCtx.save(); personCtx.globalCompositeOperation = 'source-over'; personCtx.clearRect(0, 0, W, H);
+  personCtx.translate(W, 0); personCtx.scale(-1, 1);
+  personCtx.drawImage(mask, msx, msy, msw, msh, 0, 0, W, H);
+  personCtx.globalCompositeOperation = 'source-in'; personCtx.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
+  personCtx.restore();
+  if (config.redTint) { personCtx.save(); personCtx.globalCompositeOperation = 'source-atop'; personCtx.fillStyle = 'rgba(255,0,0,.3)'; personCtx.fillRect(0, 0, W, H); personCtx.restore(); }
+  personReady = true;
+}
+function drawMirrored(c, src, sw, sh, dw, dh, r) { c.save(); c.translate(dw, 0); c.scale(-1, 1); c.drawImage(src, r.sx, r.sy, r.sw, r.sh, 0, 0, dw, dh); c.restore(); }
+
+// ================= 版面 =================
+function geo() {
+  const W = gameCanvas.width, H = gameCanvas.height, m = Math.min(W, H);
+  return { W, H, m, tx: W / 2, ty: H * 0.72, zx0: W * 0.3, zx1: W * 0.7, zy0: H * 0.3, zy1: H * 0.98,
+    psize: Math.max(46, m * 0.09), esize: Math.max(60, m * 0.13) };
+}
+const SLOT_ANGLES = [-62, -42, -21, 0, 21, 42, 62];
+const SLOT_ORDER = [3, 1, 5, 0, 6, 2, 4];
+function slotPos(slot) {
+  const g = geo(), a = SLOT_ANGLES[slot] * Math.PI / 180, R = Math.max(g.ty - g.H * 0.2, g.m * 0.4);
+  let x = g.tx + R * Math.sin(a) * Math.min(1.3, g.W / g.H / 1.2 + 0.2), y = g.ty - R * Math.cos(a);
+  return { x: Math.min(g.W - g.esize * 0.7, Math.max(g.esize * 0.7, x)), y: Math.max(g.H * 0.2, y + (Math.abs(SLOT_ANGLES[slot]) > 50 ? g.H * 0.07 : 0)) };
+}
+
+// ================= 畫面切換 =================
+function showScreen(id) {
+  document.querySelectorAll('.overlay-screen').forEach(e => e.classList.toggle('active', e.id === id));
+  $('pauseBtn').style.display = (state === 'PLAYING' || state === 'CALIB' || state === 'AWAY') ? 'block' : 'none';
+}
+function openPanel(id) { returnState = state; document.querySelectorAll('.panel-screen').forEach(e => e.classList.remove('active')); if (id === 'settingsScreen') fillSettings(); $(id).classList.add('active'); }
+function closePanel() { document.querySelectorAll('.panel-screen').forEach(e => e.classList.remove('active')); }
+
+// ================= 流程 =================
+function startGame() {
+  level = 1; score = 0; lives = Math.min(MAX_LIVES, Math.max(1, config.lives));
+  stats = { swats: 0, stuns: 0, warns: 0, hits: 0 }; stunCount = 0;
+  standNeeded = config.standSeconds; setupLevel(); enterCalib();
+}
+function nextLevel() { level++; lives = Math.min(MAX_LIVES, lives + 1); standNeeded = Math.min(1, config.standSeconds); setupLevel(); enterCalib(); }
+function toMenu() { state = 'MENU'; projs = []; enemies = []; showScreen('startScreen'); }
+function setupLevel() {
+  const n = Math.min(config.enemyMax, Math.min(7, 1 + level)), hp = config.hp + Math.floor((level - 1) / 2);
+  const slots = SLOT_ORDER.slice(0, n);
+  const faces = config.enemy.length ? config.enemy : ['👾'];
+  enemies = slots.map((s, i) => ({ slot: s, hp, maxHp: hp, face: faces[i % faces.length], cool: 1.5 + Math.random() * 2.5, flash: 0, shake: 0, dead: false, deadT: 0 }));
+  projs = []; particles = []; pending = []; floaters = []; flail = 0; stunLeft = 0; warned = false; doneTimer = 0;
+  volleyTimer = Math.max(8, 16 - level * 1.5);
+  stats.levelSwats = 0; stats.levelStuns = 0;
+}
+function enterCalib() { state = 'CALIB'; standHold = 0; outTimer = 0; showScreen(null); keepScreenOn(); }
+function pauseGame() { if (state !== 'PLAYING' && state !== 'CALIB' && state !== 'AWAY') return; returnState = state; state = 'PAUSED'; showScreen('pauseScreen'); }
+function resumeGame() { if (state !== 'PAUSED') return; state = returnState === 'PLAYING' || returnState === 'AWAY' ? 'AWAY' : 'CALIB'; standHold = 0; outTimer = 0; awayTimer = 0; showScreen(null); }
+document.addEventListener('keydown', e => {
+  if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.code === 'Space' || e.code === 'Escape') { e.preventDefault(); if (state === 'PAUSED') resumeGame(); else pauseGame(); }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+
+// ================= 站位偵測 =================
+function standUpdate(dt) {
+  const g = geo(); const x = body.medianX * g.W;
+  const inLoose = body.present && x > g.W * 0.23 && x < g.W * 0.77;
+  if (inLoose) { standHold += dt; outTimer = 0; } else { outTimer += dt; if (outTimer > 0.7) standHold = 0; }
+  return inLoose;
+}
+
+// ================= 主迴圈 =================
+function loop(ts) {
+  const dt = Math.min(0.1, lastTs ? (ts - lastTs) / 1000 : 0.016); lastTs = ts;
+  const g = geo();
+  ctx.clearRect(0, 0, g.W, g.H);
+  if (personReady) ctx.drawImage(personCanvas, 0, 0);
+  update(dt, g);
+  draw(g);
+  newMotion = false;
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function update(dt, g) {
+  if (state === 'CALIB') {
+    standUpdate(dt);
+    if (standHold >= standNeeded) { state = 'PLAYING'; countdown = 3; playSound('go'); }
+    return;
+  }
+  if (state === 'AWAY') {
+    standUpdate(dt);
+    if (standHold >= 1) { state = 'PLAYING'; }
+    return;
+  }
+  if (state === 'LEVEL_DONE') {
+    doneTimer += dt;
+    if (doneTimer > 4 && body.present && Math.abs(body.medianX - 0.5) < 0.2) { standHold += dt; if (standHold >= 2) nextLevel(); } else if (doneTimer > 4) standHold = 0;
+    updateParticles(dt); return;
+  }
+  if (state !== 'PLAYING') return;
+
+  // 倒數
+  if (countdown > 0) { const b = Math.ceil(countdown); countdown -= dt; if (Math.ceil(countdown) !== b && countdown > 0) playSound('tick'); else if (countdown <= 0) playSound('go'); standUpdate(dt); return; }
+  if (countdown > -0.8) countdown -= dt;
+  // 離開站位太久就暫停
+  const inZone = standUpdate(dt);
+  if (!inZone) { awayTimer += dt; if (awayTimer > 2.5) { state = 'AWAY'; standHold = 0; awayTimer = 0; return; } } else awayTimer = 0;
+
+  // 怪獸丟東西
+  const tMul = MUL.throw[config.throwRate] || 1;
+  volleyTimer -= dt;
+  for (const e of enemies) {
+    if (e.dead) { e.deadT += dt; continue; }
+    e.flash = Math.max(0, e.flash - dt * 3); e.shake = Math.max(0, e.shake - dt);
+    e.cool -= dt;
+    if (volleyTimer < 1) e.shake = Math.max(e.shake, 0.3);
+    if (e.cool <= 0) { throwFrom(e, 0); e.cool = Math.max(1.6, 3.6 - 0.25 * level) * tMul * (0.75 + Math.random() * 0.5); }
+  }
+  if (volleyTimer <= 0) {   // 大招：全部怪獸一起丟，形成由外往內的扇形
+    enemies.filter(e => !e.dead).forEach(e => throwFrom(e, Math.random() * 0.35));
+    volleyTimer = Math.max(8, 16 - level * 1.5) * tMul; floaters.push({ text: '⚠️ 大招！', x: g.W / 2, y: g.H * 0.42, t: 1.2, color: '#fbd38d', size: g.m * 0.1 });
+  }
+  for (let i = pending.length - 1; i >= 0; i--) { pending[i].t -= dt; if (pending[i].t <= 0) { const p = pending[i]; pending.splice(i, 1); if (!p.e.dead) spawnProj(p.e); } }
+
+  // 揮擊與亂揮判定（每拿到一張新的人像資料算一次）
+  if (newMotion) processMotion(g);
+  if (stunLeft > 0) { stunLeft -= dt; if (stunLeft <= 0) { stunLeft = 0; flail = 35; warned = false; } }
+  else { flail = Math.max(0, flail - (DECAY[config.tol] || 10) * dt); if (flail < 55) warned = false; }
+
+  // 飛行
+  const spd = (g.m * (0.3 + 0.035 * level)) * (MUL.speed[config.speed] || 1);
+  for (let i = projs.length - 1; i >= 0; i--) {
+    const p = projs[i];
+    if (p.kind === 'back') {
+      const t = p.target && !p.target.dead ? p.target : (enemies.find(e => !e.dead) || null);
+      if (!t) { projs.splice(i, 1); continue; }
+      const tp = slotPos(t.slot), dx = tp.x - p.x, dy = tp.y - p.y, d = Math.hypot(dx, dy), s = spd * 2.4 * dt;
+      if (d < g.esize * 0.6 || d < s) { hitEnemy(t, g); projs.splice(i, 1); continue; }
+      p.x += dx / d * s; p.y += dy / d * s; p.rot += dt * 14;
+    } else {
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += dt * 4;
+      if (Math.hypot(p.x - g.tx, p.y - g.ty) < g.psize * 0.9) { projs.splice(i, 1); hurtPlayer(g); if (state !== 'PLAYING') return; }
+      else if (p.y > g.H + 80 || p.x < -120 || p.x > g.W + 120) projs.splice(i, 1);
+    }
+  }
+  updateParticles(dt);
+  floaters.forEach(f => f.t -= dt); floaters = floaters.filter(f => f.t > 0);
+
+  if (enemies.length && enemies.every(e => e.dead) && !projs.some(p => p.kind === 'back')) {
+    state = 'LEVEL_DONE'; doneTimer = 0; standHold = 0; playSound('win');
+    $('levelTitle').textContent = `第 ${level} 關`;
+    $('levelBoard').textContent = `成功反擊 ${stats.levelSwats} 次\n暈眩 ${stats.levelStuns} 次\n愛心 ${'❤️'.repeat(lives)}　分數 ${score}`;
+    showScreen('levelScreen');
+  }
+}
+function throwFrom(e, delay) { if (projs.length + pending.length >= 14) return; if (delay > 0.02) pending.push({ t: delay, e }); else spawnProj(e); }
+function spawnProj(e) {
+  const g = geo(), pos = slotPos(e.slot), spd = (g.m * (0.3 + 0.035 * level)) * (MUL.speed[config.speed] || 1);
+  const ax = g.tx + (Math.random() - 0.5) * g.m * 0.16, ay = g.ty + (Math.random() - 0.5) * g.m * 0.1;
+  const dx = ax - pos.x, dy = ay - pos.y, d = Math.hypot(dx, dy) || 1;
+  const list = config.attack.length ? config.attack : ['💣'];
+  projs.push({ kind: 'in', x: pos.x, y: pos.y, vx: dx / d * spd, vy: dy / d * spd, ch: list[Math.floor(Math.random() * list.length)], color: MACARON[Math.floor(Math.random() * 8)], from: e, rot: 0, target: e });
+  e.shake = 0.25; playSound('throw');
+}
+function hurtPlayer(g) {
+  lives--; stats.hits++; damageOverlay.classList.add('damage-active'); setTimeout(() => damageOverlay.classList.remove('damage-active'), 200); playSound('hurt');
+  burst(g.tx, g.ty, '#ff6b6b', 14);
+  if (lives <= 0) { state = 'GAME_OVER'; $('overBoard').textContent = `玩到第 ${level} 關　分數 ${score}\n成功反擊 ${stats.swats} 次\n暈眩 ${stats.stuns} 次（亂揮警告 ${stats.warns} 次）`; showScreen('overScreen'); }
+}
+function hitEnemy(e, g) {
+  e.hp--; e.flash = 1; score += 10; playSound('hit'); const pos = slotPos(e.slot); burst(pos.x, pos.y, '#fbd38d', 12);
+  floaters.push({ text: '+10', x: pos.x, y: pos.y - g.esize * 0.6, t: 0.7, color: '#fff', size: g.m * 0.05 });
+  if (e.hp <= 0) { e.dead = true; score += 40; playSound('ko'); burst(pos.x, pos.y, '#fff', 24); floaters.push({ text: '💥 +40', x: pos.x, y: pos.y, t: 1, color: '#fbd38d', size: g.m * 0.07 }); }
+}
+function burst(x, y, color, n) { for (let i = 0; i < n; i++) particles.push({ x, y, vx: (Math.random() - .5) * 600, vy: (Math.random() - .5) * 600, life: 1, color }); }
+function updateParticles(dt) { for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 2.2; if (p.life <= 0) particles.splice(i, 1); } }
+
+// ===== 揮擊判定 + 亂揮偵測 =====
+function processMotion(g) {
+  const sx = maskW / g.W, sy = maskH / g.H, flying = projs.filter(p => p.kind === 'in' || p.kind === 'back');
+  // 1) 亂揮：「在動的地方」扣掉「飛行物件附近」的部分，剩下的才算亂揮
+  if (stunLeft <= 0) {
+    const R = g.psize * 1.7 * sx, R2 = R * R; let far = 0;
+    for (let k = 0; k < chgCount; k++) {
+      const i = chgIdx[k], x = i % maskW, y = (i / maskW) | 0; let near = false;
+      for (const p of flying) { const dx = x - p.x * sx, dy = y - p.y * sy; if (dx * dx + dy * dy < R2) { near = true; break; } }
+      if (!near) far++;
+    }
+    flail = Math.min(100, flail + (far / Math.max(body.count, maskW * maskH * 0.05)) * FLAIL_GAIN * motionDt);
+    if (flail >= 70 && !warned) { warned = true; stats.warns++; playSound('warn'); floaters.push({ text: '不要亂揮！', x: g.W / 2, y: g.H * 0.3, t: 1.2, color: '#fc8181', size: g.m * 0.08 }); }
+    if (flail >= 100) triggerStun(g);
+  }
+  // 2) 揮擊：飛來的東西附近「有身體、而且有在動」才算打到
+  if (stunLeft > 0) return;
+  for (const p of projs) {
+    if (p.kind !== 'in') continue;
+    const r = g.psize * 0.75, x0 = Math.max(0, Math.floor((p.x - r) * sx)), x1 = Math.min(maskW - 1, Math.ceil((p.x + r) * sx)), y0 = Math.max(0, Math.floor((p.y - r) * sy)), y1 = Math.min(maskH - 1, Math.ceil((p.y + r) * sy));
+    let b = 0, c = 0;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * maskW + x; if (cur[i] > 128) b++; if (chg[i]) c++; }
+    if (b >= 4 && c >= 3) {
+      p.kind = 'back'; p.target = p.from; stats.swats++; stats.levelSwats = (stats.levelSwats || 0) + 1; flail = Math.max(0, flail - 12); playSound('swat'); burst(p.x, p.y, '#9ae6b4', 8);
+    }
+  }
+}
+function triggerStun(g) {
+  stunLeft = Math.min(8, 3 + stunCount); stunCount++; stats.stuns++; stats.levelStuns = (stats.levelStuns || 0) + 1; flail = 100; playSound('stun');
+  if (stunCount >= config.stunPenalty) { floaters.push({ text: '💔 -1', x: g.W / 2, y: g.H * 0.5, t: 1.2, color: '#fc8181', size: g.m * 0.08 }); hurtPlayer(g); }
+}
+
+// ================= 繪圖 =================
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function text(t, x, y, size, color, stroke = true, align = 'center') {
+  ctx.font = `900 ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  if (stroke) { ctx.lineJoin = 'round'; ctx.lineWidth = size * 0.12; ctx.strokeStyle = '#000'; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function draw(g) {
+  if (state === 'LOADING' || state === 'MENU') return;
+  // 敵人
+  const now = performance.now();
+  for (const e of enemies) {
+    const pos = slotPos(e.slot); let ox = e.shake > 0 ? Math.sin(now / 25) * g.esize * 0.08 : 0;
+    ctx.save(); ctx.translate(pos.x + ox, pos.y);
+    if (e.dead) { ctx.globalAlpha = Math.max(0, 1 - e.deadT * 2); }
+    if (e.flash > 0) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 40 * e.flash; }
+    ctx.font = `${g.esize}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e.face, 0, 0);
+    ctx.restore();
+    if (!e.dead) { const bw = g.esize * 1.1, bh = Math.max(8, g.esize * 0.1), bx = pos.x - bw / 2, by = pos.y + g.esize * 0.62;
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(bx - 2, by - 2, bw + 4, bh + 4, bh); ctx.fill();
+      ctx.fillStyle = e.hp / e.maxHp > 0.5 ? '#68d391' : '#f6ad55'; rr(bx, by, bw * e.hp / e.maxHp, bh, bh); ctx.fill(); }
+  }
+  // 站位框（還沒站好、或離開太久時）
+  if (state === 'CALIB' || state === 'AWAY' || (state === 'PLAYING' && countdown > 0)) drawZone(g);
+  // 飛行物
+  for (const p of projs) {
+    const s = g.psize; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot * 0.15);
+    if (p.kind === 'back') { ctx.shadowColor = '#68d391'; ctx.shadowBlur = 30; }
+    else { ctx.shadowColor = 'rgba(255,80,80,.9)'; ctx.shadowBlur = 18; }
+    ctx.font = `${s}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = s * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(p.ch, 0, 0); ctx.fillStyle = p.kind === 'back' ? '#fff' : p.color; ctx.fillText(p.ch, 0, 0);
+    ctx.restore();
+  }
+  particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(3, g.m * 0.008), 0, 7); ctx.fill(); ctx.globalAlpha = 1; });
+  floaters.forEach(f => { ctx.globalAlpha = Math.min(1, f.t * 2); text(f.text, f.x, f.y - (1 - Math.min(1, f.t)) * 30, f.size, f.color); ctx.globalAlpha = 1; });
+  drawHUD(g);
+  if (stunLeft > 0) {
+    ctx.fillStyle = 'rgba(30,40,80,.45)'; ctx.fillRect(0, 0, g.W, g.H);
+    text('😵 手好痠！', g.W / 2, g.H * 0.45, g.m * 0.12, '#fbd38d'); text(`休息 ${Math.ceil(stunLeft)} 秒，暫時不能反擊`, g.W / 2, g.H * 0.55, g.m * 0.05, '#fff');
+  }
+  if (state === 'PLAYING' && countdown > 0) text(String(Math.ceil(countdown)), g.W / 2, g.H * 0.42, g.m * 0.3, '#fbd38d');
+  else if (state === 'PLAYING' && countdown > -0.8) text('開始！', g.W / 2, g.H * 0.42, g.m * 0.25, '#68d391');
+  if (state === 'AWAY') { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, g.W, g.H); drawZone(g); text('請站回中間', g.W / 2, g.H * 0.2, g.m * 0.1, '#fbd38d'); }
+}
+function drawZone(g) {
+  const inZ = body.present && body.medianX > 0.23 && body.medianX < 0.77;
+  ctx.save(); ctx.setLineDash([16, 12]); ctx.lineWidth = 6; ctx.strokeStyle = inZ ? '#68d391' : '#fbd38d'; ctx.fillStyle = inZ ? 'rgba(104,211,145,.16)' : 'rgba(251,211,141,.12)';
+  rr(g.zx0, g.zy0, g.zx1 - g.zx0, g.zy1 - g.zy0, 30); ctx.fill(); ctx.stroke(); ctx.restore();
+  if (state === 'CALIB' || state === 'AWAY') {
+    const need = state === 'AWAY' ? 1 : standNeeded, pr = Math.min(1, standHold / need);
+    const bw = (g.zx1 - g.zx0) * 0.8, bh = Math.max(14, g.m * 0.03), bx = g.W / 2 - bw / 2, by = g.zy0 + g.m * 0.04;
+    text(inZ ? `很好！站著不動…` : '👣 請站到這個框框裡', g.W / 2, by + bh * 3, Math.max(18, g.m * 0.045), '#fff');
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(bx, by, bw, bh, bh); ctx.fill(); ctx.fillStyle = '#68d391'; rr(bx, by, bw * pr, bh, bh); ctx.fill();
+  }
+}
+function drawHUD(g) {
+  const fs = Math.round(Math.max(18, Math.min(40, g.m * 0.04))), pad = fs * 0.5;
+  ctx.save(); ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(pad, pad, fs * 10, fs * 2.8, fs * 0.5); ctx.fill();
+  ctx.font = `bold ${fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.fillText(`第 ${level} 關　分數 ${score}`, pad * 2, pad + fs * 0.9);
+  ctx.font = `${fs * 0.95}px ${FONT}`; ctx.fillText('❤️'.repeat(Math.max(0, lives)) + `　👾×${enemies.filter(e => !e.dead).length}`, pad * 2, pad + fs * 2);
+  // 手痠條
+  const bw = Math.min(g.W * 0.32, fs * 14), bh = fs * 0.9, bx = g.W / 2 - bw / 2, by = pad;
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(bx - fs * 2.6, by - 4, bw + fs * 2.9, bh + 8 + fs * 0.9, 12); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.2)'; rr(bx, by + 2, bw, bh, bh); ctx.fill();
+  const col = flail >= 70 ? '#fc8181' : flail >= 40 ? '#f6e05e' : '#68d391';
+  ctx.fillStyle = col; rr(bx, by + 2, Math.max(bh, bw * flail / 100), bh, bh); if (flail > 0.5) ctx.fill();
+  ctx.font = `${fs}px ${FONT}`; ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.fillText('💪', bx - fs * 0.3, by + 2 + bh / 2);
+  ctx.font = `bold ${fs * 0.6}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = col; ctx.fillText(flail >= 70 ? '快手痠了！不要亂揮' : '手痠條（亂揮會變滿）', g.W / 2, by + bh + fs * 0.9);
+  ctx.restore();
+}
+
+// ================= 設定 =================
+function fillSettings() {
+  $('cLives').value = config.lives; $('cHp').value = config.hp; $('cEnemyMax').value = config.enemyMax; $('cThrow').value = config.throwRate; $('cSpeed').value = config.speed;
+  $('cTol').value = config.tol; $('cStunPenalty').value = config.stunPenalty; $('cStand').value = config.standSeconds; $('cRed').checked = config.redTint;
+  $('cAttack').value = config.attack.join(' '); $('cEnemy').value = config.enemy.join(' ');
+}
+const num = (id, def, mn, mx) => { let v = Number($(id).value); if (!isFinite(v) || $(id).value === '') v = def; return Math.min(mx, Math.max(mn, v)); };
+function saveSettings() {
+  const D = DEFAULT_CONFIG;
+  config.lives = Math.round(num('cLives', D.lives, 1, 5)); config.hp = Math.round(num('cHp', D.hp, 1, 10)); config.enemyMax = Math.round(num('cEnemyMax', D.enemyMax, 1, 7));
+  config.throwRate = $('cThrow').value; config.speed = $('cSpeed').value; config.tol = $('cTol').value; config.stunPenalty = Math.round(num('cStunPenalty', D.stunPenalty, 1, 10));
+  config.standSeconds = num('cStand', D.standSeconds, 1, 10); config.redTint = $('cRed').checked;
+  const a = splitChars($('cAttack').value), e = splitChars($('cEnemy').value);
+  config.attack = a.length ? a : D.attack; config.enemy = e.length ? e : D.enemy;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); } catch (err) {}
+  closePanel();
+}
+function resetConfig() { if (!confirm('要把所有設定恢復成原本的樣子嗎？')) return; config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); try { localStorage.removeItem(STORAGE_KEY); } catch (e) {} fillSettings(); }
+
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r); this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath(); return this; };
+}
+init();
+</script>
+</body>
+</html>
