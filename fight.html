@@ -30,10 +30,11 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
 .ibtn .ico { font-size: 1.5em; line-height: 1; }
 .ibtn.hovering { background-color: rgba(255,255,255,.25); box-shadow: 0 0 34px rgba(255,255,255,.6); transform: scale(1.03); }
 .ibtn::before { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: var(--p, 0%); background-color: rgba(255,255,255,.45); z-index: -1; }
+.ibtn.tc { top: 3vh; left: calc(50% - max(10vw, 75px)); height: 22vh; min-height: 120px; }
 .ibtn.tl { top: 3vh; left: 3vw; } .ibtn.tr { top: 3vh; right: 3vw; } .ibtn.bl { bottom: 3vh; left: 3vw; } .ibtn.br { bottom: 3vh; right: 3vw; }
 .ibtn.green { border-color: #48bb78; color: #9ae6b4; } .ibtn.blue { border-color: #4299e1; color: #90cdf4; } .ibtn.orange { border-color: #ed8936; color: #fbd38d; } .ibtn.gray { border-color: #a0aec0; color: #e2e8f0; }
 .hover-hint { font-size: clamp(14px, 2.2vh, 26px); font-weight: bold; color: #fff; background: rgba(0,0,0,.65); padding: 4px 12px; border-radius: 12px; text-shadow: none; }
-@media (orientation: portrait) { .ibtn { width: 44vw; height: 22vh; } #fsBtn { display: none !important; } .overlay-screen { padding: 24vh 16px; } }
+@media (orientation: portrait) { #startScreen .ibtn { width: 30vw; font-size: clamp(16px, 4.4vw, 30px); } #startScreen .ibtn.tc { left: 35vw; } .ibtn { width: 44vw; height: 22vh; } #fsBtn { display: none !important; } .overlay-screen { padding: 24vh 16px; } }
 .teacher-btn { position: absolute; z-index: 1100; font-family: var(--font); font-size: clamp(16px, 2.4vh, 26px); font-weight: bold; padding: 10px 18px; border-radius: 14px; border: 2px solid rgba(255,255,255,.7); background: rgba(0,0,0,.55); color: #fff; cursor: pointer; }
 #pauseBtn { display: none; width: max(14vw, 120px); height: 17vh; min-height: 100px; font-size: clamp(18px, 3.2vh, 38px); bottom: 2vh; right: 2vw; }
 @media (orientation: portrait) { #pauseBtn { width: 30vw; height: 12vh; } }
@@ -87,7 +88,7 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
     <h1>👋 揮手反擊</h1>
     <p>怪獸會朝你丟東西！<br>站在下方正中間，<b>用力揮手或搖頭</b>把它們打回去</p>
     <div class="board">⚠️ 不要亂揮！亂揮會手痠暈眩，暫時無法反擊</div>
-    <button class="ibtn gray tl" onclick="openPanel('settingsScreen')"><span class="ico">⚙️</span>設定<span class="hover-hint">身體碰住 3 秒</span></button><button class="ibtn green tr" onclick="startGame()"><span class="ico">▶️</span>開始<span class="hover-hint">身體碰住 3 秒</span></button><button class="ibtn blue bl" onclick="openPanel('helpScreen')"><span class="ico">📖</span>說明<span class="hover-hint">身體碰住 3 秒</span></button><button class="ibtn gray br" onclick="location.href='index.html'"><span class="ico">🎯</span>接物遊戲<span class="hover-hint">身體碰住 3 秒</span></button>
+    <button class="ibtn gray tl" onclick="openPanel('settingsScreen')"><span class="ico">⚙️</span>設定<span class="hover-hint">身體碰住 3 秒</span></button><button class="ibtn green tr" onclick="startGame()"><span class="ico">▶️</span>開始<span class="hover-hint">身體碰住 3 秒</span></button><button class="ibtn blue tc" onclick="openPanel('helpScreen')"><span class="ico">📖</span>說明<span class="hover-hint">身體碰住 3 秒</span></button>
   </div>
 
   <div id="pauseScreen" class="overlay-screen">
