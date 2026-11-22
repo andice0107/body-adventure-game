@@ -35,8 +35,9 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
 .hover-hint { font-size: clamp(14px, 2.2vh, 26px); font-weight: bold; color: #fff; background: rgba(0,0,0,.65); padding: 4px 12px; border-radius: 12px; text-shadow: none; }
 @media (orientation: portrait) { .ibtn { width: 44vw; height: 22vh; } #fsBtn { display: none !important; } .overlay-screen { padding: 24vh 16px; } }
 .teacher-btn { position: absolute; z-index: 1100; font-family: var(--font); font-size: clamp(16px, 2.4vh, 26px); font-weight: bold; padding: 10px 18px; border-radius: 14px; border: 2px solid rgba(255,255,255,.7); background: rgba(0,0,0,.55); color: #fff; cursor: pointer; }
-#pauseBtn { top: 12px; right: 12px; display: none; }
-#fsBtn { left: 50%; transform: translateX(-50%); bottom: 12px; }
+#pauseBtn { display: none; width: max(14vw, 120px); height: 17vh; min-height: 100px; font-size: clamp(18px, 3.2vh, 38px); bottom: 2vh; right: 2vw; }
+@media (orientation: portrait) { #pauseBtn { width: 30vw; height: 12vh; } }
+#fsBtn { left: 12px; top: 50%; transform: translateY(-50%); }
 #soundTip { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 1100; background: #fbd38d; color: #2d3748; font-weight: bold; padding: 10px 18px; border-radius: 14px; font-size: clamp(15px, 2.2vh, 24px); display: none; pointer-events: none; white-space: nowrap; }
 
 /* 設定、說明 */
@@ -78,13 +79,13 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
   <canvas id="gameCanvas"></canvas>
   <div id="damageOverlay" class="damage-effect"></div>
 
-  <button id="pauseBtn" class="teacher-btn" onclick="pauseGame()">⏸ 暫停</button>
+  <button id="pauseBtn" class="ibtn gray br" onclick="pauseGame()"><span class="ico">⏸</span>暫停<span class="hover-hint">身體碰住 3 秒</span></button>
   <button id="fsBtn" class="teacher-btn" onclick="toggleFullscreen()">⛶ 全螢幕</button>
   <div id="soundTip">🔈 老師請先點一下畫面，才會有聲音</div>
 
   <div id="startScreen" class="overlay-screen">
     <h1>👋 揮手反擊</h1>
-    <p>怪獸會朝你丟東西！<br>站在下方正中間，<b>揮手或搖頭</b>把它們打回去</p>
+    <p>怪獸會朝你丟東西！<br>站在下方正中間，<b>用力揮手或搖頭</b>把它們打回去</p>
     <div class="board">⚠️ 不要亂揮！亂揮會手痠暈眩，暫時無法反擊</div>
     <button class="ibtn gray tl" onclick="openPanel('settingsScreen')"><span class="ico">⚙️</span>設定<span class="hover-hint">身體碰住 3 秒</span></button><button class="ibtn green tr" onclick="startGame()"><span class="ico">▶️</span>開始<span class="hover-hint">身體碰住 3 秒</span></button><button class="ibtn blue bl" onclick="openPanel('helpScreen')"><span class="ico">📖</span>說明<span class="hover-hint">身體碰住 3 秒</span></button><button class="ibtn gray br" onclick="location.href='index.html'"><span class="ico">🎯</span>接物遊戲<span class="hover-hint">身體碰住 3 秒</span></button>
   </div>
@@ -129,7 +130,7 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
       <h3>🙅 防亂揮</h3>
       <div class="row"><span class="grow">亂揮容忍度</span><select id="cTol"><option value="loose">寬鬆（可以多揮一點）</option><option value="normal">普通</option><option value="strict">嚴格（很快就手痠）</option></select></div>
       <div class="row"><span class="grow">暈眩第幾次起要扣 1 顆愛心</span><input type="number" id="cStunPenalty" min="1" max="10"> 次（填 10 代表不扣）</div>
-      <div class="note">畫面上方的「💪 手痠條」會顯示亂揮累積的程度，滿了就暈眩。在東西附近揮動不算亂揮。</div>
+      <div class="note">畫面下方的「💪 手痠條」會顯示亂揮累積的程度，滿了就暈眩。在東西附近揮動不算亂揮。</div>
     </div>
     <div class="card">
       <h3>📍 站位</h3>
@@ -153,18 +154,19 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
       <ul>
         <li>玩家（<b>一個人</b>）站在鏡頭前、畫面<b>下方正中間</b>的框框裡，保持約 2 秒，遊戲就會開始。小幅度的位置誤差沒關係。</li>
         <li>怪獸會從畫面<b>上方、左邊、右邊的邊緣</b>隨機彈出來，位置每次都不一樣，朝玩家丟東西。</li>
-        <li>玩家<b>揮手或搖頭</b>，碰到飛來的東西，就會把它<b>打回去</b>；打回去的東西碰到怪獸，怪獸就被打敗消失。</li>
+        <li>玩家<b>揮手或搖頭</b>，<b>用力快速地揮</b>到飛來的東西，才會把它<b>打回去</b>（只是身體碰到、輕輕晃不算）；打回去的東西碰到怪獸，怪獸就被打敗消失。</li>
         <li>東西飛到玩家身上，會扣 1 顆愛心；愛心用完遊戲結束。過關補 1 顆愛心。</li>
         <li><b>一般關</b>：打敗指定數量的怪獸就過關（畫面左上顯示 🎯 進度）。怪獸待一下沒被打到會自己離開。</li>
         <li><b>BOSS 關</b>（預設每 5 關一次）：BOSS 位置無法預測，出現後會<b>一直丟東西</b>，直到被打回去的東西打中，才會退場，隔一下換個地方再出現。累計打中指定次數（👑 進度）才過關。</li>
         <li><b>越後面越難</b>：丟出來的東西越來越快、同時丟東西的怪獸越來越多。BOSS 圖案輪完一輪後，會從頭再來第二輪：BOSS 丟得更快、出現得更快，而且同時有 2 隻 BOSS。關卡沒有上限。</li>
-        <li>站太久離開中間，遊戲會暫停，站回中間就繼續。</li>
+        <li>BOSS 丟出來的東西<b>又大又快</b>，要<b>揮得更用力</b>才打得回去；BOSS 被打得越多次，丟的數量越多。同一關也會越來越快、越來越多。</li>
+        <li>遊戲中想暫停：用身體碰右下角「暫停」按鈕 3 秒。站得離中間太遠太久，遊戲也會自動暫停。</li>
       </ul>
     </div>
     <div class="card wide"><h3>🙅 為什麼不能亂揮？</h3>
       <ul>
         <li>只有<b>在東西附近揮動</b>才有用；單純碰到、不動，不算反擊。</li>
-        <li>在沒有東西的地方亂揮，上方的「💪 手痠條」會慢慢變滿（小幅度揮動不會增加太多，會慢慢恢復）。</li>
+        <li>在沒有東西的地方亂揮，下方的「💪 手痠條」會慢慢變滿（小幅度揮動不會增加太多，會慢慢恢復）。</li>
         <li>手痠條快滿時會變紅並出現警告。滿了就<b>暈眩 3 秒</b>，這段時間不能反擊。</li>
         <li>每暈眩一次，下一次暈眩時間多 1 秒（最多 8 秒）；暈眩到一定次數還會扣愛心。</li>
         <li>成功反擊會讓手痠條下降，所以「看準了再揮」最划算。</li>
@@ -212,6 +214,7 @@ function loadConfig() {
   return base;
 }
 const MUL = { throw: { slow: 1.4, normal: 1, fast: 0.7 }, speed: { slow: 0.8, normal: 1, fast: 1.25 } };
+const SWING = { loose: 0.09, normal: 0.14, strict: 0.2 };   // 揮擊力道門檻：飛行物附近「變動的像素」占的比例
 const DECAY = { loose: 14, normal: 10, strict: 7 };   // 手痠條每秒自然下降
 const FLAIL_GAIN = 200;                                // 亂揮累積係數（以「身體大小」為單位，離鏡頭遠近都差不多）
 const splitChars = v => ((window.Intl && Intl.Segmenter) ? [...new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(v)].map(s => s.segment) : Array.from(v)).filter(c => c.trim());
@@ -349,7 +352,7 @@ function drawMirrored(c, src, sw, sh, dw, dh, r) { c.save(); c.translate(dw, 0);
 // ================= 版面 =================
 function geo() {
   const W = gameCanvas.width, H = gameCanvas.height, m = Math.min(W, H);
-  return { W, H, m, tx: W / 2, ty: H * 0.72, zx0: W * 0.3, zx1: W * 0.7, zy0: H * 0.3, zy1: H * 0.98,
+  return { W, H, m, tx: W / 2, ty: H * 0.72, zx0: W * 0.38, zx1: W * 0.62, zy0: H * 0.3, zy1: H * 0.98,
     psize: Math.max(46, m * 0.09), esize: Math.max(56, m * 0.11) };
 }
 const SLOT_ANGLES = [-62, -42, -21, 0, 21, 42, 62];
@@ -365,15 +368,16 @@ function getBossInfo(L) {
   return { face: faces[b % faces.length], round, count: Math.min(4, 1 + round), need: Math.min(18, 5 + b + 3 * round),
     interval: Math.max(0.75, 1.7 - 0.05 * L - 0.1 * round), retreat: Math.max(0.5, 1.4 - 0.04 * L - 0.1 * round), speedBonus: 1 + 0.15 * round };
 }
-function projSpeed(g, e) { return g.m * 0.24 * speedMul(level) * (MUL.speed[config.speed] || 1) * (e && e.boss && bossInfo ? bossInfo.speedBonus : 1); }
+const progress = () => bossInfo ? Math.min(1, bossHits / Math.max(1, H)) : Math.min(1, killed / Math.max(1, K));
+function projSpeed(g, e) { return g.m * 0.24 * speedMul(level) * (1 + (bossInfo ? 0.25 : 0.2) * progress()) * (MUL.speed[config.speed] || 1) * (e && e.boss && bossInfo ? bossInfo.speedBonus : 1); }
 // 敵人只會出現在上、左、右三邊的邊緣（不在底邊），位置每次隨機
 function edgePos(size) {
   const g = geo(), spots = [];
   for (let t = 0; t < 14; t++) {
-    const r = Math.random() * (g.W + 2 * g.H * 0.5); let x, y;
-    if (r < g.W) { x = size * 0.6 + Math.random() * (g.W - size * 1.2); y = g.H * 0.17 + Math.random() * g.H * 0.04; }
-    else if (r < g.W + g.H * 0.5) { x = size * 0.65; y = g.H * 0.2 + Math.random() * g.H * 0.5; }
-    else { x = g.W - size * 0.65; y = g.H * 0.2 + Math.random() * g.H * 0.5; }
+    const r = Math.random() * (g.W + 2 * g.H * 0.55); let x, y;
+    if (r < g.W) { x = size * 0.6 + Math.random() * (g.W - size * 1.2); y = g.H * 0.08 + Math.random() * g.H * 0.05; }
+    else if (r < g.W + g.H * 0.55) { x = size * 0.65; y = g.H * 0.1 + Math.random() * g.H * 0.55; }
+    else { x = g.W - size * 0.65; y = g.H * 0.1 + Math.random() * g.H * 0.55; }
     if (!enemies.some(e => e.state !== 'wait' && Math.hypot(e.x - x, e.y - y) < size * 1.7)) return { x, y };
     spots.push({ x, y });
   }
@@ -384,9 +388,10 @@ function edgePos(size) {
 let activeScreenId = null, activeHoverBtn = null, hoverStart = 0, hoverLock = 0;
 function resetBtns() { document.querySelectorAll('.ibtn').forEach(b => { b.classList.remove('hovering'); b.style.setProperty('--p', '0%'); const h = b.querySelector('.hover-hint'); if (h) h.textContent = '身體碰住 3 秒'; }); activeHoverBtn = null; }
 function checkBtnHover(now) {
-  if (!activeScreenId || !cur || document.querySelector('.panel-screen.active') || now < hoverLock) return;
+  const playing = !activeScreenId && (state === 'PLAYING' || state === 'CALIB' || state === 'AWAY');
+  if ((!activeScreenId && !playing) || !cur || document.querySelector('.panel-screen.active') || now < hoverLock) return;
   const W = window.innerWidth, H = window.innerHeight; let hov = null;
-  for (const b of document.querySelectorAll('#' + activeScreenId + ' .ibtn')) {
+  for (const b of (playing ? [$('pauseBtn')] : document.querySelectorAll('#' + activeScreenId + ' .ibtn'))) {
     const r = b.getBoundingClientRect(), x0 = Math.max(0, Math.floor(r.left / W * maskW)), x1 = Math.min(maskW, Math.ceil(r.right / W * maskW)), y0 = Math.max(0, Math.floor(r.top / H * maskH)), y1 = Math.min(maskH, Math.ceil(r.bottom / H * maskH));
     let hit = 0, tot = 0; for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) { tot++; if (cur[y * maskW + x] > 128) hit++; }
     if (tot > 0 && hit / tot > 0.03) { hov = b; break; }
@@ -400,7 +405,8 @@ function checkBtnHover(now) {
 function showScreen(id) {
   activeScreenId = id; resetBtns(); hoverLock = performance.now() + 1200;
   document.querySelectorAll('.overlay-screen').forEach(e => e.classList.toggle('active', e.id === id));
-  $('pauseBtn').style.display = (state === 'PLAYING' || state === 'CALIB' || state === 'AWAY') ? 'block' : 'none';
+  $('pauseBtn').style.display = (state === 'PLAYING' || state === 'CALIB' || state === 'AWAY') ? 'flex' : 'none';
+  $('fsBtn').style.display = (id && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) ? 'block' : 'none';
 }
 function openPanel(id) { returnState = state; document.querySelectorAll('.panel-screen').forEach(e => e.classList.remove('active')); if (id === 'settingsScreen') fillSettings(); $(id).classList.add('active'); }
 function closePanel() { document.querySelectorAll('.panel-screen').forEach(e => e.classList.remove('active')); }
@@ -433,7 +439,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 // ================= 站位偵測 =================
 function standUpdate(dt) {
   const g = geo(); const x = body.medianX * g.W;
-  const inLoose = body.present && x > g.W * 0.23 && x < g.W * 0.77;
+  const inLoose = body.present && x > g.W * 0.35 && x < g.W * 0.65;
   if (inLoose) { standHold += dt; outTimer = 0; } else { outTimer += dt; if (outTimer > 0.7) standHold = 0; }
   return inLoose;
 }
@@ -465,7 +471,7 @@ function update(dt, g) {
   }
   if (state === 'LEVEL_DONE') {
     doneTimer += dt;
-    if (doneTimer > 4 && body.present && Math.abs(body.medianX - 0.5) < 0.2) { standHold += dt; if (standHold >= 2) nextLevel(); } else if (doneTimer > 4) standHold = 0;
+    if (doneTimer > 4 && body.present && Math.abs(body.medianX - 0.5) < 0.12) { standHold += dt; if (standHold >= 2) nextLevel(); } else if (doneTimer > 4) standHold = 0;
     updateParticles(dt); return;
   }
   if (state !== 'PLAYING') return;
@@ -482,9 +488,9 @@ function update(dt, g) {
   if (!boss) {
     spawnCd -= dt;
     const alive = enemies.filter(e => e.state === 'in' || e.state === 'idle').length;
-    if (spawnCd <= 0 && alive < activeMax(level) && killed + alive < K) {
+    if (spawnCd <= 0 && alive < Math.min(6, activeMax(level) + (level >= 4 && progress() >= 0.5 ? 1 : 0)) && killed + alive < K) {
       const size = g.esize, pos = edgePos(size), faces = config.enemy.length ? config.enemy : ['👻'];
-      enemies.push({ boss: false, face: faces[Math.floor(Math.random() * faces.length)], size, x: pos.x, y: pos.y, state: 'in', t: 0, cool: 0.9, throwsLeft: level < 10 ? 2 : 3, interval: throwInterval(level) * tMul * (0.85 + Math.random() * 0.3), finishing: false });
+      enemies.push({ boss: false, face: faces[Math.floor(Math.random() * faces.length)], size, x: pos.x, y: pos.y, state: 'in', t: 0, cool: 0.9, throwsLeft: level < 10 ? 2 : 3, interval: throwInterval(level) * tMul * (1 - 0.3 * progress()) * (0.85 + Math.random() * 0.3), finishing: false });
       spawnCd = Math.max(0.5, 1.8 - 0.04 * level) * (0.8 + Math.random() * 0.4);
     }
   }
@@ -496,7 +502,7 @@ function update(dt, g) {
       e.cool -= dt;
       if (e.cool <= 0) {
         if (e.finishing) { e.state = 'out'; e.t = 0; }
-        else { spawnProj(e); e.cool = e.interval * (e.boss ? 1 : 1); if (!e.boss && --e.throwsLeft <= 0) { e.finishing = true; e.cool = 0.9; } }
+        else { spawnProj(e); e.cool = e.interval * (e.boss ? 1 - 0.15 * Math.min(2, Math.floor(progress() * 3)) : 1); if (!e.boss && --e.throwsLeft <= 0) { e.finishing = true; e.cool = 0.9; } }
       }
     }
     else if (e.state === 'out') { if (e.t >= 0.4) { if (e.boss) { e.state = 'wait'; e.wait = bossInfo.retreat; e.t = 0; } else e.state = 'gone'; } }
@@ -518,7 +524,7 @@ function update(dt, g) {
       if (hit) { hitEnemy(hit, g); projs.splice(i, 1); continue; }
       if (p.x < -150 || p.x > g.W + 150 || p.y < -150 || p.y > g.H + 150) projs.splice(i, 1);
     } else {
-      if (Math.hypot(p.x - g.tx, p.y - g.ty) < g.psize * 0.9) { projs.splice(i, 1); hurtPlayer(g); if (state !== 'PLAYING') return; }
+      if (Math.hypot(p.x - g.tx, p.y - g.ty) < g.psize * 0.9 * (p.scale || 1)) { projs.splice(i, 1); hurtPlayer(g, p.dmg || 1); if (state !== 'PLAYING') return; }
       else if (p.y > g.H + 80 || p.x < -150 || p.x > g.W + 150) projs.splice(i, 1);
     }
   }
@@ -534,15 +540,22 @@ function update(dt, g) {
   }
 }
 function spawnProj(e) {
-  if (projs.length >= 14) return;
-  const g = geo(), spd = projSpeed(g, e);
+  if (projs.length >= 16) return;
+  const g = geo(), list = config.attack.length ? config.attack : ['💣'];
+  const ph = e.boss ? Math.min(2, Math.floor(progress() * 3)) : 0;          // BOSS 打越多次，丟法越兇
+  const shots = e.boss ? Math.min(4, 1 + ph + (bossInfo.round >= 1 ? 1 : 0)) : 1;
+  const spd = projSpeed(g, e) * (e.boss ? 1.15 + 0.1 * ph : 1);
   const ax = g.tx + (Math.random() - 0.5) * g.m * 0.16, ay = g.ty + (Math.random() - 0.5) * g.m * 0.1;
-  const dx = ax - e.x, dy = ay - e.y, d = Math.hypot(dx, dy) || 1, list = config.attack.length ? config.attack : ['💣'];
-  projs.push({ kind: 'in', x: e.x, y: e.y, vx: dx / d * spd, vy: dy / d * spd, ch: list[Math.floor(Math.random() * list.length)], color: MACARON[Math.floor(Math.random() * 8)], from: e, rot: 0 });
+  const base = Math.atan2(ay - e.y, ax - e.x), spread = 0.2;
+  const dmg = e.boss && bossInfo.round * 6 + Math.round(level / config.bossEvery) >= 3 ? 2 : 1;
+  for (let i = 0; i < shots; i++) {
+    const a = base + (i - (shots - 1) / 2) * spread;
+    projs.push({ kind: 'in', x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, ch: list[Math.floor(Math.random() * list.length)], color: MACARON[Math.floor(Math.random() * 8)], from: e, rot: 0, big: !!e.boss, scale: e.boss ? 1.9 : 1, dmg });
+  }
   playSound('throw');
 }
-function hurtPlayer(g) {
-  lives--; stats.hits++; damageOverlay.classList.add('damage-active'); setTimeout(() => damageOverlay.classList.remove('damage-active'), 200); playSound('hurt');
+function hurtPlayer(g, dmg) {
+  lives -= dmg || 1; stats.hits++; damageOverlay.classList.add('damage-active'); setTimeout(() => damageOverlay.classList.remove('damage-active'), 200); playSound('hurt');
   burst(g.tx, g.ty, '#ff6b6b', 14);
   if (lives <= 0) { state = 'GAME_OVER'; $('overBoard').textContent = `玩到第 ${level} 關　分數 ${score}\n成功反擊 ${stats.swats} 次\n暈眩 ${stats.stuns} 次（亂揮警告 ${stats.warns} 次）`; showScreen('overScreen'); }
 }
@@ -578,10 +591,11 @@ function processMotion(g) {
   if (stunLeft > 0) return;
   for (const p of projs) {
     if (p.kind !== 'in') continue;
-    const r = g.psize * 0.75, x0 = Math.max(0, Math.floor((p.x - r) * sx)), x1 = Math.min(maskW - 1, Math.ceil((p.x + r) * sx)), y0 = Math.max(0, Math.floor((p.y - r) * sy)), y1 = Math.min(maskH - 1, Math.ceil((p.y + r) * sy));
+    const r = g.psize * 0.75 * (p.scale || 1), x0 = Math.max(0, Math.floor((p.x - r) * sx)), x1 = Math.min(maskW - 1, Math.ceil((p.x + r) * sx)), y0 = Math.max(0, Math.floor((p.y - r) * sy)), y1 = Math.min(maskH - 1, Math.ceil((p.y + r) * sy));
     let b = 0, c = 0;
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * maskW + x; if (cur[i] > 128) b++; if (chg[i]) c++; }
-    if (b >= 4 && c >= 3) {
+    const area = (x1 - x0 + 1) * (y1 - y0 + 1), need = (SWING[config.tol] || 0.14) * (p.big ? 1.3 : 1);
+    if (b >= area * 0.22 && c >= Math.max(6, area * need)) {
       const tg = (p.from && (p.from.state === 'in' || p.from.state === 'idle')) ? p.from : enemies.filter(e => e.state === 'in' || e.state === 'idle').sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
       const bs = projSpeed(g, p.from) * 2.4, bx = tg ? tg.x - p.x : p.x - g.tx, by = tg ? tg.y - p.y : p.y - g.ty, bd = Math.hypot(bx, by) || 1;
       p.kind = 'back'; p.vx = bx / bd * bs; p.vy = by / bd * bs; stats.swats++; stats.levelSwats = (stats.levelSwats || 0) + 1; flail = Math.max(0, flail - 12); playSound('swat'); burst(p.x, p.y, '#9ae6b4', 8);
@@ -619,9 +633,9 @@ function draw(g) {
   if (state === 'CALIB' || state === 'AWAY' || (state === 'PLAYING' && countdown > 0)) drawZone(g);
   // 飛行物
   for (const p of projs) {
-    const s = g.psize; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot * 0.15);
+    const s = g.psize * (p.scale || 1); ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot * 0.15);
     if (p.kind === 'back') { ctx.shadowColor = '#68d391'; ctx.shadowBlur = 30; }
-    else { ctx.shadowColor = 'rgba(255,80,80,.9)'; ctx.shadowBlur = 18; }
+    else { ctx.shadowColor = p.big ? 'rgba(255,0,0,1)' : 'rgba(255,80,80,.9)'; ctx.shadowBlur = p.big ? 40 : 18; }
     ctx.font = `${s}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = s * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(p.ch, 0, 0); ctx.fillStyle = p.kind === 'back' ? '#fff' : p.color; ctx.fillText(p.ch, 0, 0);
     ctx.restore();
@@ -642,7 +656,7 @@ function draw(g) {
   if (state === 'AWAY') { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, g.W, g.H); drawZone(g); text('請站回中間', g.W / 2, g.H * 0.2, g.m * 0.1, '#fbd38d'); }
 }
 function drawZone(g) {
-  const inZ = body.present && body.medianX > 0.23 && body.medianX < 0.77;
+  const inZ = body.present && body.medianX > 0.35 && body.medianX < 0.65;
   ctx.save(); ctx.setLineDash([16, 12]); ctx.lineWidth = 6; ctx.strokeStyle = inZ ? '#68d391' : '#fbd38d'; ctx.fillStyle = inZ ? 'rgba(104,211,145,.16)' : 'rgba(251,211,141,.12)';
   rr(g.zx0, g.zy0, g.zx1 - g.zx0, g.zy1 - g.zy0, 30); ctx.fill(); ctx.stroke(); ctx.restore();
   if (state === 'CALIB' || state === 'AWAY') {
@@ -653,19 +667,19 @@ function drawZone(g) {
   }
 }
 function drawHUD(g) {
-  const fs = Math.round(Math.max(18, Math.min(40, g.m * 0.04))), pad = fs * 0.5;
+  const fs = Math.round(Math.max(18, Math.min(40, g.m * 0.04))), pad = fs * 0.5, ph = fs * 2.8;
   ctx.save(); ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(pad, pad, fs * 10, fs * 2.8, fs * 0.5); ctx.fill();
-  ctx.font = `bold ${fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.fillText(`${bossInfo ? '👑' : ''}第 ${level} 關　分數 ${score}`, pad * 2, pad + fs * 0.9);
-  ctx.font = `${fs * 0.95}px ${FONT}`; ctx.fillText('❤️'.repeat(Math.max(0, lives)) + (bossInfo ? `　👑 ${Math.min(bossHits, H)}/${H}` : `　🎯 ${killed}/${K}`), pad * 2, pad + fs * 2);
-  // 手痠條
-  const bw = Math.min(g.W * 0.32, fs * 14), bh = fs * 0.9, bx = g.W / 2 - bw / 2, by = pad;
-  ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(bx - fs * 2.6, by - 4, bw + fs * 2.9, bh + 8 + fs * 0.9, 12); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(pad, g.H - pad - ph, fs * 10, ph, fs * 0.5); ctx.fill();
+  ctx.font = `bold ${fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.fillText(`${bossInfo ? '👑' : ''}第 ${level} 關　分數 ${score}`, pad * 2, g.H - pad - ph + fs * 0.9);
+  ctx.font = `${fs * 0.95}px ${FONT}`; ctx.fillText('❤️'.repeat(Math.max(0, lives)) + (bossInfo ? `　👑 ${Math.min(bossHits, H)}/${H}` : `　🎯 ${killed}/${K}`), pad * 2, g.H - pad - ph + fs * 2);
+  // 手痠條（底邊中間）
+  const bw = Math.min(g.W * 0.26, fs * 12), bh = fs * 0.9, bx = g.W / 2 - bw / 2, by = g.H - pad - bh - fs * 1.2 - 4;
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(bx - fs * 2.6, by - 4, bw + fs * 2.9, bh + fs * 1.2 + 8, 12); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,.2)'; rr(bx, by + 2, bw, bh, bh); ctx.fill();
   const col = flail >= 70 ? '#fc8181' : flail >= 40 ? '#f6e05e' : '#68d391';
   ctx.fillStyle = col; rr(bx, by + 2, Math.max(bh, bw * flail / 100), bh, bh); if (flail > 0.5) ctx.fill();
   ctx.font = `${fs}px ${FONT}`; ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.fillText('💪', bx - fs * 0.3, by + 2 + bh / 2);
-  ctx.font = `bold ${fs * 0.6}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = col; ctx.fillText(flail >= 70 ? '快手痠了！不要亂揮' : '手痠條（亂揮會變滿）', g.W / 2, by + bh + fs * 0.9);
+  ctx.font = `bold ${fs * 0.6}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = col; ctx.fillText(flail >= 70 ? '快手痠了！不要亂揮' : '手痠條（亂揮會變滿）', g.W / 2, by + bh + fs * 0.75);
   ctx.restore();
 }
 
