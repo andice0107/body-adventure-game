@@ -129,6 +129,7 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
     </div>
     <div class="card">
       <h3>🙅 防亂揮</h3>
+      <div class="row"><label><input type="checkbox" id="cFlailOn"> <b>使用手痠條</b>（關掉就不限制亂揮，也不會暈眩，畫面上不顯示手痠條）</label></div>
       <div class="row"><span class="grow">亂揮容忍度</span><select id="cTol"><option value="loose">寬鬆（可以多揮一點）</option><option value="normal">普通</option><option value="strict">嚴格（很快就手痠）</option></select></div>
       <div class="row"><span class="grow">暈眩第幾次起要扣 1 顆愛心</span><input type="number" id="cStunPenalty" min="1" max="10"> 次（填 10 代表不扣）</div>
       <div class="note">畫面下方的「💪 手痠條」會顯示亂揮累積的程度，滿了就暈眩。在東西附近揮動不算亂揮。</div>
@@ -266,7 +267,7 @@ const QUIZ_TEMPLATES = [
 const DEFAULT_CONFIG = {
   quizMode: false, questionsText: DEFAULT_QUESTIONS,
   lives: 3, startLevel: 1, bossEvery: 5, throwRate: 'normal', speed: 'normal',
-  tol: 'normal', stunPenalty: 3, standSeconds: 2, redTint: true,
+  tol: 'normal', flailOn: true, stunPenalty: 3, standSeconds: 2, redTint: true,
   attack: ['💣', '🔥', '⚡', '🌶️', '🪨'], enemy: ['👻', '👽', '🤡', '👺', '🦇', '🕷️', '🐛'], boss: ['🐲', '🦖', '👹', '🤖', '👾', '🧟']
 };
 let config = loadConfig();
@@ -756,7 +757,7 @@ function updateParticles(dt) { for (let i = particles.length - 1; i >= 0; i--) {
 function processMotion(g) {
   const sx = maskW / g.W, sy = maskH / g.H, flying = projs.filter(p => p.kind === 'in' || p.kind === 'back');
   // 1) 亂揮：「在動的地方」扣掉「飛行物件附近」的部分，剩下的才算亂揮
-  if (stunLeft <= 0) {
+  if (stunLeft <= 0 && config.flailOn !== false) {
     const R = g.psize * 1.7 * sx, R2 = R * R; let far = 0;
     for (let k = 0; k < chgCount; k++) {
       const i = chgIdx[k], x = i % maskW, y = (i / maskW) | 0; let near = false;
@@ -778,7 +779,7 @@ function processMotion(g) {
     if (b >= area * 0.22 && c >= Math.max(6, area * need)) {
       const tg = (p.from && !p.from.fake && (p.from.state === 'in' || p.from.state === 'idle')) ? p.from : enemies.filter(e => !e.fake && (e.state === 'in' || e.state === 'idle')).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
       const bs = projSpeed(g, p.from) * 2.4, bx = tg ? tg.x - p.x : p.x - g.tx, by = tg ? tg.y - p.y : p.y - g.ty, bd = Math.hypot(bx, by) || 1;
-      p.kind = 'back'; p.vx = bx / bd * bs; p.vy = by / bd * bs; if (p.wrong) { stats.wrongSwats = (stats.wrongSwats || 0) + 1; flail = Math.min(100, flail + 10); floaters.push({ text: '❌ 不是答案！', x: p.x, y: p.y - g.psize, t: 0.9, color: '#fc8181', size: g.m * 0.045 }); } else { stats.swats++; stats.levelSwats = (stats.levelSwats || 0) + 1; flail = Math.max(0, flail - 12); } playSound('swat'); burst(p.x, p.y, '#9ae6b4', 8);
+      p.kind = 'back'; p.vx = bx / bd * bs; p.vy = by / bd * bs; if (p.wrong) { stats.wrongSwats = (stats.wrongSwats || 0) + 1; if (config.flailOn !== false) flail = Math.min(100, flail + 10); floaters.push({ text: '❌ 不是答案！', x: p.x, y: p.y - g.psize, t: 0.9, color: '#fc8181', size: g.m * 0.045 }); } else { stats.swats++; stats.levelSwats = (stats.levelSwats || 0) + 1; flail = Math.max(0, flail - 12); } playSound('swat'); burst(p.x, p.y, '#9ae6b4', 8);
     }
   }
 }
@@ -866,6 +867,7 @@ function drawHUD(g) {
   ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(pad, g.H - pad - ph, fs * 10, ph, fs * 0.5); ctx.fill();
   ctx.font = `bold ${fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.fillText(`${bossInfo ? '👑' : ''}第 ${level} 關　分數 ${score}`, pad * 2, g.H - pad - ph + fs * 0.9);
   ctx.font = `${fs * 0.95}px ${FONT}`; ctx.fillText('❤️'.repeat(Math.max(0, lives)) + (bossInfo ? `　👑 ${Math.min(bossHits, H)}/${H}` : `　🎯 ${killed}/${K}`), pad * 2, g.H - pad - ph + fs * 2);
+  if (config.flailOn === false) { ctx.restore(); return; }
   // 手痠條（底邊中間）
   const bw = Math.min(g.W * 0.26, fs * 12), bh = fs * 0.9, bx = g.W / 2 - bw / 2, by = g.H - pad - bh - fs * 1.2 - 4;
   ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(bx - fs * 2.6, by - 4, bw + fs * 2.9, bh + fs * 1.2 + 8, 12); ctx.fill();
@@ -879,6 +881,7 @@ function drawHUD(g) {
 
 // ================= 設定 =================
 function fillSettings() {
+  $('cFlailOn').checked = config.flailOn !== false;
   fillQuizTpl(); $('cQuizMode').checked = !!config.quizMode; $('cQuizText').value = config.questionsText || DEFAULT_QUESTIONS;
   $('cLives').value = config.lives; $('cStartLevel').value = config.startLevel; $('cBossEvery').value = config.bossEvery; $('cThrow').value = config.throwRate; $('cSpeed').value = config.speed;
   $('cTol').value = config.tol; $('cStunPenalty').value = config.stunPenalty; $('cStand').value = config.standSeconds; $('cRed').checked = config.redTint;
@@ -889,6 +892,7 @@ function saveSettings() {
   const D = DEFAULT_CONFIG;
   config.lives = Math.round(num('cLives', D.lives, 1, 5)); config.startLevel = Math.round(num('cStartLevel', 1, 1, 99)); config.bossEvery = Math.round(num('cBossEvery', 5, 2, 20));
   config.throwRate = $('cThrow').value; config.speed = $('cSpeed').value; config.tol = $('cTol').value; config.stunPenalty = Math.round(num('cStunPenalty', D.stunPenalty, 1, 10));
+  config.flailOn = $('cFlailOn').checked;
   config.standSeconds = num('cStand', D.standSeconds, 1, 10); config.redTint = $('cRed').checked;
   config.quizMode = $('cQuizMode').checked; config.questionsText = $('cQuizText').value.trim() || DEFAULT_QUESTIONS;
   if (config.quizMode && !parseQuestions(config.questionsText).length) { alert('題本裡找不到題目，先用預設題目。\n每行要像「哪些是『天』？=天|夭,大,夫」'); config.questionsText = DEFAULT_QUESTIONS; }
