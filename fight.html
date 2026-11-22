@@ -79,7 +79,7 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
   <canvas id="gameCanvas"></canvas>
   <div id="damageOverlay" class="damage-effect"></div>
 
-  <button id="pauseBtn" class="ibtn gray br" onclick="pauseGame()"><span class="ico">⏸</span>暫停<span class="hover-hint">身體碰住 3 秒</span></button>
+  <button id="pauseBtn" class="ibtn gray br" onclick="pauseGame()"><span class="ico">⏸</span>暫停<span class="hover-hint">身體碰住 2 秒</span></button>
   <button id="fsBtn" class="teacher-btn" onclick="toggleFullscreen()">⛶ 全螢幕</button>
   <div id="soundTip">🔈 老師請先點一下畫面，才會有聲音</div>
 
@@ -161,7 +161,7 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
         <li><b>越後面越難</b>：丟出來的東西越來越快、同時丟東西的怪獸越來越多。BOSS 圖案輪完一輪後，會從頭再來第二輪：BOSS 丟得更快、出現得更快，而且同時有 2 隻 BOSS。關卡沒有上限。</li>
         <li>BOSS 丟出來的東西<b>又大又快、攻擊力是兩倍（一次扣 2 顆心），有的會蛇行轉彎，有的（紫色光）不一定朝你飛，會在牆壁上彈來彈去，直到你打回去或打到你</b>，要<b>揮得更用力</b>才打得回去；第一個 BOSS 要打中 <b>10 次</b>才過關，被打得越多次，丟的數量越多。同一關也會越來越快、越來越多。</li>
         <li>身體要待在框框裡，超出框框太多就<b>無法揮擊</b>（東西還是會打到你），畫面會提醒你快回到中間。</li>
-        <li>遊戲中想暫停：用身體碰右下角「暫停」按鈕 3 秒。站得離中間太遠太久，遊戲也會自動暫停。</li>
+        <li>遊戲中想暫停：用身體碰右下角「暫停」按鈕 2 秒。站得離中間太遠太久，遊戲也會自動暫停。</li>
       </ul>
     </div>
     <div class="card wide"><h3>🙅 為什麼不能亂揮？</h3>
@@ -390,7 +390,7 @@ function edgePos(size) {
 
 // ================= 畫面切換 =================
 let activeScreenId = null, activeHoverBtn = null, hoverStart = 0, hoverLock = 0;
-function resetBtns() { document.querySelectorAll('.ibtn').forEach(b => { b.classList.remove('hovering'); b.style.setProperty('--p', '0%'); const h = b.querySelector('.hover-hint'); if (h) h.textContent = '身體碰住 3 秒'; }); activeHoverBtn = null; }
+function resetBtns() { document.querySelectorAll('.ibtn').forEach(b => { b.classList.remove('hovering'); b.style.setProperty('--p', '0%'); const h = b.querySelector('.hover-hint'); if (h) h.textContent = b.id === 'pauseBtn' ? '身體碰住 2 秒' : '身體碰住 3 秒'; }); activeHoverBtn = null; }
 function checkBtnHover(now) {
   const playing = !activeScreenId && (state === 'PLAYING' || state === 'CALIB' || state === 'AWAY');
   if ((!activeScreenId && !playing) || !cur || document.querySelector('.panel-screen.active') || now < hoverLock) return;
@@ -402,9 +402,9 @@ function checkBtnHover(now) {
   }
   if (!hov) { if (activeHoverBtn) resetBtns(); return; }
   if (activeHoverBtn !== hov) { resetBtns(); activeHoverBtn = hov; hoverStart = now; hov.classList.add('hovering'); return; }
-  const el = now - hoverStart; hov.style.setProperty('--p', Math.min(100, el / 3000 * 100) + '%');
-  const h = hov.querySelector('.hover-hint'), rem = Math.ceil((3000 - el) / 1000); if (h) h.textContent = rem > 0 ? `再 ${rem} 秒…` : '選好了！';
-  if (el >= 3000) { resetBtns(); playSound('go'); hov.click(); }
+  const HOLD = hov.id === 'pauseBtn' ? 2000 : 3000, el = now - hoverStart; hov.style.setProperty('--p', Math.min(100, el / HOLD * 100) + '%');
+  const h = hov.querySelector('.hover-hint'), rem = Math.ceil((HOLD - el) / 1000); if (h) h.textContent = rem > 0 ? `再 ${rem} 秒…` : '選好了！';
+  if (el >= HOLD) { resetBtns(); playSound('go'); hov.click(); }
 }
 function showScreen(id) {
   activeScreenId = id; resetBtns(); hoverLock = performance.now() + 1200;
