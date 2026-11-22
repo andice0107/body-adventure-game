@@ -155,11 +155,11 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
         <li>玩家（<b>一個人</b>）站在鏡頭前、畫面<b>下方正中間</b>的框框裡，保持約 2 秒，遊戲就會開始。小幅度的位置誤差沒關係。</li>
         <li>怪獸會從畫面<b>上方、左邊、右邊的邊緣</b>隨機彈出來，位置每次都不一樣，朝玩家丟東西。</li>
         <li>玩家<b>揮手或搖頭</b>，<b>用力快速地揮</b>到飛來的東西，才會把它<b>打回去</b>（只是身體碰到、輕輕晃不算）；打回去的東西碰到怪獸，怪獸就被打敗消失。</li>
-        <li>東西飛到玩家身上，會扣 1 顆愛心；愛心用完遊戲結束。過關補 1 顆愛心。</li>
+        <li>東西飛到玩家身上，會扣 1 顆愛心；愛心用完遊戲結束。過關會得到補血物品：一般關補 1 顆心，BOSS 關補 2 顆心（最多 5 顆）。</li>
         <li><b>一般關</b>：打敗指定數量的怪獸就過關（畫面左下顯示 🎯 進度）。怪獸待一下沒被打到會自己離開。</li>
         <li><b>BOSS 關</b>（預設每 5 關一次）：BOSS 位置無法預測，出現後會<b>一直丟東西</b>，直到被打回去的東西打中，才會退場，隔一下換個地方再出現。累計打中指定次數（👑 進度）才過關。</li>
         <li><b>越後面越難</b>：丟出來的東西越來越快、同時丟東西的怪獸越來越多。BOSS 圖案輪完一輪後，會從頭再來第二輪：BOSS 丟得更快、出現得更快，而且同時有 2 隻 BOSS。關卡沒有上限。</li>
-        <li>BOSS 丟出來的東西<b>又大又快，而且會左右蛇行轉彎</b>，要<b>揮得更用力</b>才打得回去；第一個 BOSS 要打中 <b>10 次</b>才過關，被打得越多次，丟的數量越多。同一關也會越來越快、越來越多。</li>
+        <li>BOSS 丟出來的東西<b>又大又快、攻擊力是兩倍（一次扣 2 顆心），有的會蛇行轉彎，有的（紫色光）不一定朝你飛，會在牆壁上彈來彈去，直到你打回去或打到你</b>，要<b>揮得更用力</b>才打得回去；第一個 BOSS 要打中 <b>10 次</b>才過關，被打得越多次，丟的數量越多。同一關也會越來越快、越來越多。</li>
         <li>遊戲中想暫停：用身體碰右下角「暫停」按鈕 3 秒。站得離中間太遠太久，遊戲也會自動暫停。</li>
       </ul>
     </div>
@@ -216,7 +216,7 @@ function loadConfig() {
 const MUL = { throw: { slow: 1.4, normal: 1, fast: 0.7 }, speed: { slow: 0.8, normal: 1, fast: 1.25 } };
 const SWING = { loose: 0.09, normal: 0.14, strict: 0.2 };   // 揮擊力道門檻：飛行物附近「變動的像素」占的比例
 const DECAY = { loose: 14, normal: 10, strict: 7 };   // 手痠條每秒自然下降
-const FLAIL_GAIN = 200;                                // 亂揮累積係數（以「身體大小」為單位，離鏡頭遠近都差不多）
+const FLAIL_GAIN = 420;                                // 亂揮累積係數（以「身體大小」為單位，離鏡頭遠近都差不多）
 const splitChars = v => ((window.Intl && Intl.Segmenter) ? [...new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(v)].map(s => s.segment) : Array.from(v)).filter(c => c.trim());
 
 // ================= 狀態 =================
@@ -417,7 +417,7 @@ function startGame() {
   stats = { swats: 0, stuns: 0, warns: 0, hits: 0 }; stunCount = 0;
   standNeeded = config.standSeconds; setupLevel(); enterCalib();
 }
-function nextLevel() { level++; lives = Math.min(MAX_LIVES, lives + 1); standNeeded = Math.min(1, config.standSeconds); setupLevel(); enterCalib(); }
+function nextLevel() { level++; standNeeded = Math.min(1, config.standSeconds); setupLevel(); enterCalib(); }
 function toMenu() { state = 'MENU'; projs = []; enemies = []; showScreen('startScreen'); }
 function setupLevel() {
   const g = geo(); enemies = []; projs = []; particles = []; floaters = []; flail = 0; stunLeft = 0; warned = false; doneTimer = 0;
@@ -529,8 +529,15 @@ function update(dt, g) {
       if (hit) { hitEnemy(hit, g); projs.splice(i, 1); continue; }
       if (p.x < -150 || p.x > g.W + 150 || p.y < -150 || p.y > g.H + 150) projs.splice(i, 1);
     } else {
-      if (Math.hypot(p.x - g.tx, p.y - g.ty) < g.psize * 0.9 * (p.scale || 1)) { projs.splice(i, 1); hurtPlayer(g, p.dmg || 1); if (state !== 'PLAYING') return; }
-      else if (p.y > g.H + 80 || p.x < -150 || p.x > g.W + 150) projs.splice(i, 1);
+      if (p.bounce) {
+        p.life += dt; const r = g.psize * (p.scale || 1) * 0.5;
+        if (p.x < r) { p.x = r; p.vx = Math.abs(p.vx); } else if (p.x > g.W - r) { p.x = g.W - r; p.vx = -Math.abs(p.vx); }
+        if (p.y < r) { p.y = r; p.vy = Math.abs(p.vy); } else if (p.y > g.H - r) { p.y = g.H - r; p.vy = -Math.abs(p.vy); }
+        if (p.life > 30) { projs.splice(i, 1); continue; }
+      }
+      const inBody = p.bounce ? (Math.pow((p.x - g.tx) / ((g.zx1 - g.zx0) * 0.5), 2) + Math.pow((p.y - g.ty) / (g.H * 0.3), 2) < 1) : Math.hypot(p.x - g.tx, p.y - g.ty) < g.psize * 0.9 * (p.scale || 1);
+      if (inBody) { projs.splice(i, 1); hurtPlayer(g, p.dmg || 1); if (state !== 'PLAYING') return; }
+      else if (!p.bounce && (p.y > g.H + 80 || p.x < -150 || p.x > g.W + 150)) projs.splice(i, 1);
     }
   }
   updateParticles(dt);
@@ -540,7 +547,8 @@ function update(dt, g) {
     enemies.forEach(e => { if (e.state !== 'wait') { e.state = 'dead'; e.t = 0; burst(e.x, e.y, '#fff', 14); } });
     state = 'LEVEL_DONE'; doneTimer = 0; standHold = 0; playSound('win');
     $('levelTitle').textContent = (bossInfo ? '👑 BOSS 關　' : '') + `第 ${level} 關`;
-    $('levelBoard').textContent = `成功反擊 ${stats.levelSwats} 次\n暈眩 ${stats.levelStuns} 次\n愛心 ${'❤️'.repeat(lives)}　分數 ${score}`;
+    const heal = bossInfo ? 2 : 1, before = lives; lives = Math.min(MAX_LIVES, lives + heal);
+    $('levelBoard').textContent = `成功反擊 ${stats.levelSwats} 次\n暈眩 ${stats.levelStuns} 次\n🎁 補血物品 ${bossInfo ? '💖💖' : '💖'}　${lives > before ? `補回 ${lives - before} 顆心` : '愛心已滿'}\n愛心 ${'❤️'.repeat(lives)}　分數 ${score}`;
     showScreen('levelScreen');
   }
 }
@@ -552,9 +560,15 @@ function spawnProj(e) {
   const spd = projSpeed(g, e) * (e.boss ? 1.4 + 0.12 * ph : 1);
   const ax = g.tx + (Math.random() - 0.5) * g.m * 0.16, ay = g.ty + (Math.random() - 0.5) * g.m * 0.1;
   const base = Math.atan2(ay - e.y, ax - e.x), spread = 0.2;
-  const dmg = e.boss && bossInfo.round * 6 + Math.round(level / config.bossEvery) >= 3 ? 2 : 1;
+  const dmg = e.boss ? 2 : 1;
+  const bounceN = projs.filter(q => q.bounce).length, bcap = 5 + (e.boss ? bossInfo.round * 2 : 0);
   for (let i = 0; i < shots; i++) {
     const a = base + (i - (shots - 1) / 2) * spread;
+    if (e.boss && bounceN + projs.filter(q => q.bounce).length - bounceN < bcap && Math.random() < 0.3 + 0.1 * ph) {   // 反彈型：不一定朝玩家，會在牆上彈來彈去
+      const tx = g.W * (0.1 + Math.random() * 0.8), ty = g.H * (0.2 + Math.random() * 0.5), ba = Math.atan2(ty - e.y, tx - e.x);
+      projs.push({ kind: 'in', bounce: true, x: e.x, y: e.y, vx: Math.cos(ba) * spd, vy: Math.sin(ba) * spd, ch: list[Math.floor(Math.random() * list.length)], color: '#c4b5fd', from: e, rot: 0, big: true, scale: 1.9, dmg, life: 0 });
+      continue;
+    }
     projs.push({ kind: 'in', x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, ch: list[Math.floor(Math.random() * list.length)], color: MACARON[Math.floor(Math.random() * 8)], from: e, rot: 0, big: !!e.boss, scale: e.boss ? 1.9 : 1, dmg, curve: !!e.boss, ang: a, spd, t: 0, amp: 0.45 + 0.12 * ph + 0.1 * (bossInfo ? bossInfo.round : 0), freq: 3 + ph * 0.6 + Math.random(), wph: Math.random() * 6.28 + i, turn: 1.2 + 0.3 * ph });
   }
   playSound('throw');
@@ -640,7 +654,7 @@ function draw(g) {
   for (const p of projs) {
     const s = g.psize * (p.scale || 1); ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot * 0.15);
     if (p.kind === 'back') { ctx.shadowColor = '#68d391'; ctx.shadowBlur = 30; }
-    else { ctx.shadowColor = p.big ? 'rgba(255,0,0,1)' : 'rgba(255,80,80,.9)'; ctx.shadowBlur = p.big ? 40 : 18; }
+    else { ctx.shadowColor = p.bounce ? 'rgba(168,85,247,1)' : p.big ? 'rgba(255,0,0,1)' : 'rgba(255,80,80,.9)'; ctx.shadowBlur = p.big ? 40 : 18; }
     ctx.font = `${s}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = s * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(p.ch, 0, 0); ctx.fillStyle = p.kind === 'back' ? '#fff' : p.color; ctx.fillText(p.ch, 0, 0);
     ctx.restore();
