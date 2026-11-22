@@ -139,6 +139,25 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
       <div class="row"><label><input type="checkbox" id="cRed"> 在身上顯示紅色</label></div>
     </div>
     <div class="card wide">
+      <h3>📚 題目模式（練習辨識字：形近字、同音字…）</h3>
+      <div class="row"><label><input type="checkbox" id="cQuizMode"> <b>開啟題目模式</b>（關閉就是一般的揮手反擊）</label></div>
+      <div class="note">開啟後，飛來的東西會變成「字」。<b>是答案的字要揮回去</b>打敵人；<b>不是答案的字不要揮</b>（它飛到你身上不會扣血，但揮了它，敵人會變強，被揮 3 次就變強敵）。每一關系統自動選一題。</div>
+      <div class="row"><span>題本（一行一題：<b>題目=答案1,答案2|不是答案1,不是答案2</b>，只寫一題也可以）</span><textarea id="cQuizText" rows="8" style="flex:1 1 100%;font-family:var(--font);font-size:1em;padding:8px;border-radius:8px;border:none"></textarea></div>
+      <div class="row">
+        <button class="small-btn green" onclick="$('qzFile').click()">📂 上傳題本檔</button>
+        <input type="file" id="qzFile" accept=".txt,.csv,.tsv,text/plain,text/csv" style="display:none" onchange="uploadQuiz(event)">
+        <label><input type="checkbox" id="qzAppend"> 接在目前題目後面</label>
+        <button class="small-btn gray" onclick="downloadMyQuiz()">💾 下載目前題本</button>
+      </div>
+      <div class="row">
+        <span>範本：</span><select id="qzTpl" onchange="showTplDesc()"></select>
+        <button class="small-btn" onclick="loadQuizTpl()">載入這個範本</button>
+        <button class="small-btn gray" onclick="downloadQuizTpl()">下載範本</button>
+        <button class="small-btn gray" onclick="$('cQuizText').value = DEFAULT_QUESTIONS">換回預設題目</button>
+      </div>
+      <div class="note" id="qzDesc"></div>
+    </div>
+    <div class="card wide">
       <h3>🎨 內容（一次輸入多個，會自動拆開；可以用表情符號或文字）</h3>
       <div class="row"><span>怪獸丟出來的東西</span><input type="text" id="cAttack"></div>
       <div class="row"><span>一般怪獸的圖案</span><input type="text" id="cEnemy"></div>
@@ -157,6 +176,7 @@ p { margin: 0; font-size: clamp(18px, 3.4vh, 38px); line-height: 1.5; text-shado
         <li>怪獸會從畫面<b>上方、左邊、右邊的邊緣</b>隨機彈出來，位置每次都不一樣，朝玩家丟東西。</li>
         <li>玩家<b>揮手或搖頭</b>，<b>用力快速地揮</b>到飛來的東西，才會把它<b>打回去</b>（只是身體碰到、輕輕晃不算）；打回去的東西碰到怪獸，怪獸就被打敗消失。</li>
         <li>東西飛到玩家身上，會扣 1 顆愛心；愛心用完遊戲結束。過關會得到補血物品：一般關補 1 顆心，BOSS 關補 2 顆心（最多 5 顆）。</li>
+        <li><b>題目模式</b>（設定裡開啟）：飛來的東西變成字。<b>是答案的字要揮回去</b>打敵人，<b>不是答案的字不要揮</b>——它飛到你身上不會扣血，揮了它反而讓敵人變強（3 次變強敵，要打 3 次）。題目在畫面下方，題本可以自己寫、下載、上傳。得分只有「正確打到敵人」才算。</li>
         <li><b>一般關</b>：打敗指定數量的怪獸就過關（畫面左下顯示 🎯 進度）。怪獸待一下沒被打到會自己離開。同時在場的怪獸越來越多：第一個 BOSS 前最多 4 隻，第二個 BOSS 前最多 6 隻，之後每過一個 BOSS 多 2 隻。</li>
         <li><b>BOSS 關</b>（預設每 5 關一次）：一次會彈出<b>好幾個 BOSS，外表都一樣，只有一個是真的</b>。每個 BOSS 都會一直丟東西。假 BOSS 丟的東西跟一般怪獸一樣，而且打不死（打到只會顯示「是假的」）；只有打回去的東西打中<b>真 BOSS</b> 才算一次，接著它們會一起退場，換地方再彈出（真的是哪一個也會換）。累計打中指定次數（👑 進度）才過關。第一個 BOSS 關同時最多 3 個，第二個 4 個，之後每個 BOSS 關多 1 個。</li>
         <li><b>越後面越難</b>：丟出來的東西越來越快、同時丟東西的怪獸越來越多。BOSS 圖案輪完一輪後，會從頭再來第二輪：BOSS 丟得更快、出現得更快，而且同時有 2 隻 BOSS。關卡沒有上限。</li>
@@ -204,7 +224,47 @@ const MAX_LIVES = 5, STORAGE_KEY = 'bodyFightConfig_v1', MP_VERSION = '0.1.16754
 const MP_SOURCES = ['./mediapipe/', `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@${MP_VERSION}/`, `https://unpkg.com/@mediapipe/selfie_segmentation@${MP_VERSION}/`];
 
 // ================= 設定 =================
+const DEFAULT_QUESTIONS = `# 揮手反擊 題本
+# 一行一題：題目=正確答案1,正確答案2|不是答案的字1,不是答案的字2
+# 正確的會出現讓你「揮回去」打敵人；不是答案的不要揮（揮了敵人會變強）
+哪些是『天』？=天|夭,大,夫,禾,添
+哪些是『未』？=未|末,木,朱,米
+哪些是『日』？=日|曰,目,白,田
+哪些是『己』？=己|已,巳,乙,記
+`;
+const QUIZ_TEMPLATES = [
+  { id: 'blank', name: '空白格式（附說明）', desc: '只有格式說明和 2 題示範，自己照著寫。', text: `# 揮手反擊 題本
+# 一行一題：題目=正確答案1,正確答案2|不是答案的字1,不是答案的字2
+# 正確答案可以有很多個；不是答案的字（形近字、同音字…）請放在「|」後面
+# 只寫一題也可以，每一關都會用那一題，難度會自己慢慢增加
+# 答案建議 4 個字以內，也可以用表情符號；以 # 開頭的行是備註
+哪些是『天』？=天|夭,大,夫,禾,添
+哪些唸成ㄍㄨㄥ？=工,公,功|宮,共,弓
+` },
+  { id: 'shape', name: '形近字辨識（5 題）', desc: '目標字 vs. 長得很像的字。', text: `# 形近字辨識
+哪些是『天』？=天|夭,大,夫,禾,添
+哪些是『未』？=未|末,木,朱,米
+哪些是『日』？=日|曰,目,白,田
+哪些是『己』？=己|已,巳,乙,記
+哪些是『人』？=人|入,八,大,个
+` },
+  { id: 'sound', name: '同音字辨識（4 題）', desc: '唸起來一樣的字，要揮回去；不一樣的不要揮。', text: `# 同音字辨識
+哪些唸成ㄍㄨㄥ？=工,公,功,攻|宮,共,弓,紅
+哪些唸成ㄑㄧㄥ？=青,清,輕,蜻|情,請,晴,慶
+哪些唸成ㄊㄧㄢ？=天,添,田|甜,填,店,典
+哪些唸成ㄕˋ？=是,事,市,室|石,十,詩,師
+` },
+  { id: 'part', name: '部件（明、河、想）', desc: '哪些是組成某個字的部件。', text: `# 部件辨識
+哪些可以組成『明』？=日,月|田,木,目,貝
+哪些可以組成『河』？=水,可,氵|火,木,日,何
+哪些可以組成『想』？=木,目,心|禾,日,月,手
+` },
+  { id: 'math', name: '數學：等於 10（單題）', desc: '只有一題，每一關都用這一題，難度仍會增加。', text: `# 單題示範：每一關都用這一題
+哪些等於 10？=5+5,6+4,12-2,7+3|3+3,9-4,8+3,2+5
+` }
+];
 const DEFAULT_CONFIG = {
+  quizMode: false, questionsText: DEFAULT_QUESTIONS,
   lives: 3, startLevel: 1, bossEvery: 5, throwRate: 'normal', speed: 'normal',
   tol: 'normal', stunPenalty: 3, standSeconds: 2, redTint: true,
   attack: ['💣', '🔥', '⚡', '🌶️', '🪨'], enemy: ['👻', '👽', '🤡', '👺', '🦇', '🕷️', '🐛'], boss: ['🐲', '🦖', '👹', '🤖', '👾', '🧟']
@@ -214,6 +274,58 @@ function loadConfig() {
   const base = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); if (s && typeof s === 'object') Object.assign(base, s); } catch (e) {}
   return base;
+}
+// ================= 題目模式 =================
+const quiz = { list: [], order: [], cur: null, wrongPool: [] };
+function parseQuestions(text) {
+  const out = [], clean = a => a.trim().replace(/^["“”']+|["“”']+$/g, '').trim();
+  String(text || '').replace(/^\ufeff/, '').split(/\r?\n/).forEach(line => {
+    line = line.trim(); if (!line || /^[#＃]/.test(line)) return;
+    const m = line.match(/^(.*?)[=＝](.*)$/); if (!m) return;
+    const q = clean(m[1]), sp = m[2].split(/[|｜]/), list = x => x.split(/[,，、\t]/).map(clean).filter(Boolean);
+    const cs = list(sp[0]), ws = sp[1] ? list(sp[1]) : [];
+    if (q && cs.length) out.push({ q, corrects: cs, wrongs: ws });
+  });
+  return out;
+}
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function initQuiz() {
+  quiz.list = parseQuestions(config.questionsText); if (!quiz.list.length) quiz.list = parseQuestions(DEFAULT_QUESTIONS);
+  quiz.order = shuffle(quiz.list.map((_, i) => i));
+}
+function setLevelQuestion() {   // 每一關自己選一題；題目用完重新洗牌；只有一題就每關都是那題
+  const n = quiz.list.length; if (!n) initQuiz();
+  const k = level - Math.max(1, Math.round(config.startLevel));
+  if (k > 0 && k % n === 0) { const last = quiz.order[n - 1]; quiz.order = shuffle(quiz.list.map((_, i) => i)); if (n > 1 && quiz.order[0] === last) [quiz.order[0], quiz.order[1]] = [quiz.order[1], quiz.order[0]]; }
+  quiz.cur = quiz.list[quiz.order[Math.max(0, k) % n]];
+  let pool = quiz.cur.wrongs.slice();
+  if (!pool.length) pool = [...new Set(quiz.list.flatMap(q => q.corrects))].filter(a => !quiz.cur.corrects.includes(a));
+  quiz.wrongPool = pool.length ? pool : ['？'];
+}
+function pickItem() {   // 這顆東西是答案還是「不是答案」（越後面的關，不是答案的比例越高）
+  const wrongP = Math.min(0.55, 0.2 + 0.025 * (level - 1) + 0.1 * progress());
+  if (Math.random() < wrongP) return { ch: quiz.wrongPool[Math.floor(Math.random() * quiz.wrongPool.length)], wrong: true };
+  return { ch: quiz.cur.corrects[Math.floor(Math.random() * quiz.cur.corrects.length)], wrong: false };
+}
+function downloadText(name, text) {
+  const blob = new Blob(['\ufeff' + text], { type: 'text/plain;charset=utf-8' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+async function decodeFile(file) {
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { try { return new TextDecoder('big5').decode(buf); } catch (e2) { return new TextDecoder('utf-8').decode(buf); } }
+}
+function fillQuizTpl() { const sel = $('qzTpl'); if (sel.options.length) return; QUIZ_TEMPLATES.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; sel.appendChild(o); }); showTplDesc(); }
+function showTplDesc() { const t = QUIZ_TEMPLATES.find(x => x.id === $('qzTpl').value); $('qzDesc').textContent = t ? t.desc : ''; }
+function loadQuizTpl() { const t = QUIZ_TEMPLATES.find(x => x.id === $('qzTpl').value); if (!t) return; if ($('cQuizText').value.trim() && !confirm('這會取代目前輸入框裡的題目，確定嗎？（可以先按「下載目前題本」備份）')) return; $('cQuizText').value = t.text; }
+function downloadQuizTpl() { const t = QUIZ_TEMPLATES.find(x => x.id === $('qzTpl').value); if (t) downloadText('揮手反擊_題本範本_' + t.name.replace(/[：（）、\s]/g, '_') + '.txt', t.text); }
+function downloadMyQuiz() { downloadText('揮手反擊_我的題本.txt', ($('cQuizText').value.trim() || DEFAULT_QUESTIONS) + '\n'); }
+async function uploadQuiz(e) {
+  const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return;
+  const text = (await decodeFile(file)).replace(/^\ufeff/, ''), n = parseQuestions(text).length;
+  if (!n) { alert('這個檔案裡找不到題目。\n每行要像「哪些是『天』？=天|夭,大,夫」。可以先下載範本照著寫。'); return; }
+  const box = $('cQuizText'); box.value = $('qzAppend').checked && box.value.trim() ? box.value.replace(/\s+$/, '') + '\n' + text.trim() : text.trim();
+  alert(`已讀入 ${n} 題。記得按右上角「儲存並返回」才會生效。`);
 }
 const MUL = { throw: { slow: 1.4, normal: 1, fast: 0.7 }, speed: { slow: 0.8, normal: 1, fast: 1.25 } };
 const SWING = { loose: 0.09, normal: 0.14, strict: 0.2 };   // 揮擊力道門檻：飛行物附近「變動的像素」占的比例
@@ -379,7 +491,8 @@ function aliveLimit() {
   return Math.max(1, Math.min(cap, Math.ceil(cap * (idx + 1 + progress()) / e)));
 }
 const progress = () => bossInfo ? Math.min(1, bossHits / Math.max(1, H)) : Math.min(1, killed / Math.max(1, K));
-function projSpeed(g, e) {
+function projSpeed(g, e) { return projSpeedBase(g, e) * (config.quizMode ? Math.min(1, 0.75 + 0.025 * (level - 1)) : 1); }
+function projSpeedBase(g, e) {
   if (e && e.fake) return g.m * 0.24 * speedMul(level) * (MUL.speed[config.speed] || 1);   // 假 BOSS：跟一般敵人一樣
   return g.m * 0.24 * speedMul(level) * (1 + (bossInfo ? 0.25 : 0.2) * progress()) * (MUL.speed[config.speed] || 1) * (e && e.boss && bossInfo ? bossInfo.speedBonus : 1); }
 // 敵人只會出現在上、左、右三邊的邊緣（不在底邊），位置每次隨機
@@ -427,12 +540,14 @@ function closePanel() { document.querySelectorAll('.panel-screen').forEach(e => 
 function startGame() {
   level = Math.max(1, Math.round(config.startLevel)); score = 0; lives = Math.min(MAX_LIVES, Math.max(1, config.lives));
   stats = { swats: 0, stuns: 0, warns: 0, hits: 0 }; stunCount = 0;
+  if (config.quizMode) initQuiz();
   standNeeded = config.standSeconds; setupLevel(); enterCalib();
 }
 function nextLevel() { level++; standNeeded = Math.min(1, config.standSeconds); setupLevel(); enterCalib(); }
 function toMenu() { state = 'MENU'; projs = []; enemies = []; showScreen('startScreen'); }
 function setupLevel() {
   const g = geo(); enemies = []; projs = []; particles = []; floaters = []; flail = 0; stunLeft = 0; warned = false; doneTimer = 0;
+  if (config.quizMode) setLevelQuestion();
   killed = 0; bossHits = 0; spawnCd = 0.6; stats.levelSwats = 0; stats.levelStuns = 0;
   if (isBossLevel(level)) {
     bossInfo = getBossInfo(level); H = bossInfo.need; K = 0;
@@ -475,7 +590,7 @@ function update(dt, g) {
   outWarn = body.present ? (body.outFrac >= 0.7 ? true : body.outFrac < 0.55 ? false : outWarn) : false;
   if (state === 'CALIB') {
     standUpdate(dt);
-    if (standHold >= standNeeded) { state = 'PLAYING'; countdown = 3; playSound('go'); }
+    if (standHold >= standNeeded) { state = 'PLAYING'; countdown = config.quizMode ? 6 : 3; playSound('go'); }
     return;
   }
   if (state === 'AWAY') {
@@ -515,7 +630,7 @@ function update(dt, g) {
       e.cool -= dt;
       if (e.cool <= 0) {
         if (e.finishing) { e.state = 'out'; e.t = 0; }
-        else { spawnProj(e); e.cool = e.interval * (e.boss && !e.fake ? 1 - 0.12 * Math.min(3, Math.floor(progress() * 4)) : 1); if (!e.boss && --e.throwsLeft <= 0) { e.finishing = true; e.cool = 0.9; } }
+        else if (spawnProj(e) === false) { e.cool = 0.15; } else { e.cool = Math.max(config.quizMode ? 1.0 : 0, e.interval * (e.boss && !e.fake ? 1 - 0.12 * Math.min(3, Math.floor(progress() * 4)) : 1)) * (e.powered ? 0.6 : 1); if (!e.boss && --e.throwsLeft <= 0) { e.finishing = true; e.cool = 0.9; } }
       }
     }
     else if (e.state === 'out') { if (e.t >= 0.4) { if (e.boss) { e.state = 'wait'; e.t = 0; } else e.state = 'gone'; } }
@@ -549,7 +664,7 @@ function update(dt, g) {
     p.x += p.vx * dt; p.y += p.vy * dt; p.rot += dt * (p.kind === 'back' ? 14 : 4);
     if (p.kind === 'back') {
       const hit = enemies.find(e => (e.state === 'in' || e.state === 'idle') && e.t > (e.state === 'in' ? 0.15 : 0) && Math.hypot(e.x - p.x, e.y - p.y) < e.size * 0.55);
-      if (hit) { hitEnemy(hit, g); projs.splice(i, 1); continue; }
+      if (hit) { hitEnemy(hit, g, p.wrong); projs.splice(i, 1); continue; }
       if (p.x < -150 || p.x > g.W + 150 || p.y < -150 || p.y > g.H + 150) projs.splice(i, 1);
     } else {
       if (p.bounce) {
@@ -559,7 +674,11 @@ function update(dt, g) {
         if (p.life > 30) { projs.splice(i, 1); continue; }
       }
       const inBody = p.bounce ? (Math.pow((p.x - g.tx) / ((g.zx1 - g.zx0) * 0.5), 2) + Math.pow((p.y - g.ty) / (g.H * 0.3), 2) < 1) : Math.hypot(p.x - g.tx, p.y - g.ty) < g.psize * 0.9 * (p.scale || 1);
-      if (inBody) { projs.splice(i, 1); hurtPlayer(g, p.dmg || 1); if (state !== 'PLAYING') return; }
+      if (inBody) {
+        projs.splice(i, 1);
+        if (p.wrong) { floaters.push({ text: '👍 沒揮，很好', x: g.tx, y: g.ty - g.m * 0.25, t: 0.8, color: '#9ae6b4', size: g.m * 0.045 }); continue; }   // 不是答案：穿過去，不扣血
+        hurtPlayer(g, p.dmg || 1); if (state !== 'PLAYING') return;
+      }
       else if (!p.bounce && (p.y > g.H + 80 || p.x < -150 || p.x > g.W + 150)) projs.splice(i, 1);
     }
   }
@@ -576,24 +695,27 @@ function update(dt, g) {
   }
 }
 function spawnProj(e) {
-  if (projs.length >= 26) return;
-  const rb = e.boss && !e.fake, g = geo(), list = config.attack.length ? config.attack : ['💣'];
+  if (projs.length >= 26) return false;
+  const pw = !!e.powered, rb = e.boss && !e.fake, g = geo(), list = config.attack.length ? config.attack : ['💣'];
   const ph = rb ? Math.min(3, Math.floor(progress() * 4)) : 0;          // BOSS 打越多次，丟法越兇
-  const shots = rb ? Math.min(5, 1 + ph + (bossInfo.round >= 1 ? 1 : 0)) : 1;
+  const qz = config.quizMode && quiz.cur;
+  if (qz && projs.some(q => q.from === e && q.kind === 'in' && Math.hypot(q.x - e.x, q.y - e.y) < g.psize * 3.4)) return false;   // 同一隻連丟時，前一個要先飛遠，兩個不能太靠近
+  const shots = rb ? Math.min(qz ? 3 : 5, 1 + ph + (bossInfo.round >= 1 ? 1 : 0)) : pw ? 2 : 1;
   const spd = projSpeed(g, e) * (rb ? 1.8 + 0.15 * ph : 1);
   const ax = g.tx + (Math.random() - 0.5) * g.m * 0.16, ay = g.ty + (Math.random() - 0.5) * g.m * 0.1;
-  const base = Math.atan2(ay - e.y, ax - e.x), spread = 0.2;
-  const dmg = rb ? 2 : 1;
+  const base = Math.atan2(ay - e.y, ax - e.x), spread = qz ? 0.55 : 0.2;
+  const dmg = rb || pw ? 2 : 1, itemOf = () => qz ? pickItem() : null;
   const bounceN = projs.filter(q => q.bounce).length, bcap = 5 + (rb ? bossInfo.round * 2 : 0);
   for (let i = 0; i < shots; i++) {
     const a = base + (i - (shots - 1) / 2) * spread;
     if (rb && bounceN + projs.filter(q => q.bounce).length - bounceN < bcap && Math.random() < 0.3 + 0.1 * ph) {   // 反彈型：不一定朝玩家，會在牆上彈來彈去
       const tx = g.W * (0.1 + Math.random() * 0.8), ty = g.H * (0.2 + Math.random() * 0.5), ba = Math.atan2(ty - e.y, tx - e.x);
-      projs.push({ kind: 'in', bounce: true, x: e.x, y: e.y, vx: Math.cos(ba) * spd, vy: Math.sin(ba) * spd, ch: list[Math.floor(Math.random() * list.length)], color: '#c4b5fd', from: e, rot: 0, big: true, scale: 1.9, dmg, life: 0 });
+      const it = itemOf();
+      projs.push({ kind: 'in', bounce: true, x: e.x, y: e.y, vx: Math.cos(ba) * spd, vy: Math.sin(ba) * spd, ch: it ? it.ch : list[Math.floor(Math.random() * list.length)], wrong: !!(it && it.wrong), bubble: !!it, color: it ? MACARON[Math.floor(Math.random() * 8)] : '#c4b5fd', from: e, rot: 0, big: true, scale: 1.9, dmg, life: 0 });
       continue;
     }
-    const fast = rb && Math.random() < 0.22, sp = fast ? spd * 1.5 : spd;
-    projs.push({ kind: 'in', fast, x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, ch: list[Math.floor(Math.random() * list.length)], color: fast ? '#fff7ae' : MACARON[Math.floor(Math.random() * 8)], from: e, rot: 0, big: !!rb, scale: rb ? 1.9 : 1, dmg, curve: !!rb && !fast, ang: a, spd: sp, t: 0, amp: 0.45 + 0.12 * ph + 0.1 * (bossInfo ? bossInfo.round : 0), freq: 3 + ph * 0.6 + Math.random(), wph: Math.random() * 6.28 + i, turn: 1.2 + 0.3 * ph });
+    const fast = rb && !qz && Math.random() < 0.22, sp = fast ? spd * 1.5 : spd, it = itemOf();
+    projs.push({ kind: 'in', fast, wrong: !!(it && it.wrong), bubble: !!it, x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, ch: it ? it.ch : list[Math.floor(Math.random() * list.length)], color: fast ? '#fff7ae' : MACARON[Math.floor(Math.random() * 8)], from: e, rot: 0, big: !!rb || pw, scale: rb ? 1.9 : pw ? 1.4 : (qz ? 1.15 : 1), dmg, curve: !!rb && !fast, ang: a, spd: sp, t: 0, amp: (0.45 + 0.12 * ph + 0.1 * (bossInfo ? bossInfo.round : 0)) * (qz ? 0.5 : 1), freq: 3 + ph * 0.6 + Math.random(), wph: Math.random() * 6.28 + i, turn: 1.2 + 0.3 * ph });
   }
   playSound('throw');
 }
@@ -602,12 +724,24 @@ function hurtPlayer(g, dmg) {
   burst(g.tx, g.ty, '#ff6b6b', 14);
   if (lives <= 0) { state = 'GAME_OVER'; $('overBoard').textContent = `玩到第 ${level} 關　分數 ${score}\n成功反擊 ${stats.swats} 次\n暈眩 ${stats.stuns} 次（亂揮警告 ${stats.warns} 次）`; showScreen('overScreen'); }
 }
-function hitEnemy(e, g) {
+function hitEnemy(e, g, wrong) {
+  if (wrong) {   // 揮了「不是答案」的字：不會打倒敵人，反而讓它變強
+    burst(e.x, e.y, '#fc8181', 12); playSound('hurt');
+    if (e.boss) { e.cool = 0; floaters.push({ text: '💢 BOSS 生氣了！', x: e.x, y: e.y + e.size * 0.7, t: 1, color: '#fc8181', size: g.m * 0.05 }); }
+    else {
+      e.power = (e.power || 0) + 1;
+      if (e.power >= 3 && !e.powered) { e.powered = true; e.hp = 3; e.size *= 1.5; e.interval *= 0.6; e.throwsLeft += 3; e.finishing = false; if (e.state === 'idle' && e.cool > 0.6) e.cool = 0.6; floaters.push({ text: '👿 變成強敵！要打 3 次', x: e.x, y: e.y + e.size * 0.7, t: 1.3, color: '#fc8181', size: g.m * 0.05 }); }
+      else floaters.push({ text: `💢 敵人變強 ${e.power}/3`, x: e.x, y: e.y + e.size * 0.6, t: 1, color: '#fc8181', size: g.m * 0.045 });
+    }
+    return;
+  }
   playSound('hit'); burst(e.x, e.y, '#fbd38d', 14);
   if (e.fake) { floaters.push({ text: '💨 是假的！', x: e.x, y: e.y + e.size * 0.7, t: 0.9, color: '#fc8181', size: g.m * 0.05 }); return; }
   if (e.boss) {
     bossHits++; score += 30; enemies.forEach(q => { if (q.boss && (q.state === 'in' || q.state === 'idle')) { q.state = 'out'; q.t = 0; } });
     floaters.push({ text: `👑 ${Math.min(bossHits, H)}/${H}`, x: e.x, y: e.y + e.size * 0.7, t: 0.9, color: '#fbd38d', size: g.m * 0.06 });
+  } else if (e.powered && --e.hp > 0) {
+    floaters.push({ text: `💥 還要 ${e.hp} 次`, x: e.x, y: e.y + e.size * 0.6, t: 0.9, color: '#fbd38d', size: g.m * 0.05 }); score += 10;
   } else {
     killed++; score += 50; e.state = 'dead'; e.t = 0; playSound('ko'); burst(e.x, e.y, '#fff', 22);
     floaters.push({ text: '💥 +50', x: e.x, y: e.y, t: 0.9, color: '#fbd38d', size: g.m * 0.06 });
@@ -642,7 +776,7 @@ function processMotion(g) {
     if (b >= area * 0.22 && c >= Math.max(6, area * need)) {
       const tg = (p.from && !p.from.fake && (p.from.state === 'in' || p.from.state === 'idle')) ? p.from : enemies.filter(e => !e.fake && (e.state === 'in' || e.state === 'idle')).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
       const bs = projSpeed(g, p.from) * 2.4, bx = tg ? tg.x - p.x : p.x - g.tx, by = tg ? tg.y - p.y : p.y - g.ty, bd = Math.hypot(bx, by) || 1;
-      p.kind = 'back'; p.vx = bx / bd * bs; p.vy = by / bd * bs; stats.swats++; stats.levelSwats = (stats.levelSwats || 0) + 1; flail = Math.max(0, flail - 12); playSound('swat'); burst(p.x, p.y, '#9ae6b4', 8);
+      p.kind = 'back'; p.vx = bx / bd * bs; p.vy = by / bd * bs; if (p.wrong) { stats.wrongSwats = (stats.wrongSwats || 0) + 1; flail = Math.min(100, flail + 10); floaters.push({ text: '❌ 不是答案！', x: p.x, y: p.y - g.psize, t: 0.9, color: '#fc8181', size: g.m * 0.045 }); } else { stats.swats++; stats.levelSwats = (stats.levelSwats || 0) + 1; flail = Math.max(0, flail - 12); } playSound('swat'); burst(p.x, p.y, '#9ae6b4', 8);
     }
   }
 }
@@ -668,7 +802,7 @@ function draw(g) {
     if (e.state === 'in') sc = Math.min(1, e.t / 0.4) * 1.08; else if (e.state === 'out') { sc = Math.max(0, 1 - e.t / 0.4); alpha = sc; } else if (e.state === 'dead') { sc = 1 + e.t; alpha = Math.max(0, 1 - e.t * 2); }
     const shake = (e.state === 'idle' && e.cool < 0.3 && !e.finishing) ? Math.sin(now / 22) * e.size * 0.05 : 0;
     ctx.save(); ctx.translate(e.x + shake, e.y); ctx.scale(sc, sc); ctx.globalAlpha = alpha;
-    if (e.boss) { ctx.shadowColor = '#ff4d4d'; ctx.shadowBlur = 36; }
+    if (e.boss || e.powered) { ctx.shadowColor = '#ff4d4d'; ctx.shadowBlur = 36; }
     ctx.font = `${e.size}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e.face, 0, 0);
     ctx.restore();
     if (e.boss && (e.state === 'idle' || e.state === 'in')) { ctx.globalAlpha = alpha; text('👑', e.x, e.y - e.size * 0.62, e.size * 0.38, '#fff'); ctx.globalAlpha = 1; }
@@ -677,9 +811,14 @@ function draw(g) {
   if (state === 'CALIB' || state === 'AWAY' || (state === 'PLAYING' && countdown > 0)) drawZone(g);
   // 飛行物
   for (const p of projs) {
-    const s = g.psize * (p.scale || 1); ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot * 0.15);
+    const s = g.psize * (p.scale || 1); ctx.save(); ctx.translate(p.x, p.y); if (!p.bubble) ctx.rotate(p.rot * 0.15);
     if (p.kind === 'back') { ctx.shadowColor = '#68d391'; ctx.shadowBlur = 30; }
     else { ctx.shadowColor = p.fast ? 'rgba(255,255,120,1)' : p.bounce ? 'rgba(168,85,247,1)' : p.big ? 'rgba(255,0,0,1)' : 'rgba(255,80,80,.9)'; ctx.shadowBlur = p.big ? 40 : 18; }
+    if (p.bubble) {   // 題目模式：字放在泡泡裡，看起來都一樣，不能靠顏色猜答案
+      const r = s * 0.72; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fillStyle = p.kind === 'back' ? '#fff' : p.color; ctx.fill(); ctx.lineWidth = s * 0.07; ctx.strokeStyle = '#2d3748'; ctx.stroke();
+      ctx.shadowBlur = 0; ctx.fillStyle = '#1a202c'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const len = Array.from(p.ch).length; ctx.font = `bold ${Math.min(s * 0.95, (r * 1.7) / Math.max(1, len * 0.9))}px ${FONT}`; ctx.fillText(p.ch, 0, 0); ctx.restore(); continue;
+    }
     ctx.font = `${s}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = s * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(p.ch, 0, 0); ctx.fillStyle = p.kind === 'back' ? '#fff' : p.color; ctx.fillText(p.ch, 0, 0);
     ctx.restore();
@@ -687,15 +826,17 @@ function draw(g) {
   particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(3, g.m * 0.008), 0, 7); ctx.fill(); ctx.globalAlpha = 1; });
   floaters.forEach(f => { ctx.globalAlpha = Math.min(1, f.t * 2); text(f.text, f.x, f.y - (1 - Math.min(1, f.t)) * 30, f.size, f.color); ctx.globalAlpha = 1; });
   drawHUD(g);
+  if (config.quizMode && quiz.cur && (state === 'PLAYING' || state === 'CALIB' || state === 'AWAY')) drawQuizBanner(g);
   if (stunLeft > 0) {
     ctx.fillStyle = 'rgba(30,40,80,.45)'; ctx.fillRect(0, 0, g.W, g.H);
     text('😵 手好痠！', g.W / 2, g.H * 0.45, g.m * 0.12, '#fbd38d'); text(`休息 ${Math.ceil(stunLeft)} 秒，暫時不能反擊`, g.W / 2, g.H * 0.55, g.m * 0.05, '#fff');
   }
   if (state === 'PLAYING' && countdown <= 0 && outWarn) { drawZone(g); text('⚠️ 身體不能超出框框！快回到中間', g.W / 2, g.H * 0.2, g.m * 0.06, '#fc8181'); }
   if (state === 'PLAYING' && countdown > 0) {
-    text(String(Math.ceil(countdown)), g.W / 2, g.H * 0.42, g.m * 0.3, '#fbd38d');
+    text(String(Math.ceil(countdown)), g.W / 2, g.H * (config.quizMode ? 0.58 : 0.42), g.m * (config.quizMode ? 0.2 : 0.3), '#fbd38d');
     text((bossInfo ? '👑 BOSS 關！' : '') + `第 ${level} 關`, g.W / 2, g.H * 0.2, g.m * 0.09, bossInfo ? '#fc8181' : '#fff');
-    text(bossInfo ? `BOSS 有真有假，打中真的 ${H} 次就過關` : `打敗 ${K} 隻怪獸就過關`, g.W / 2, g.H * 0.28, g.m * 0.045, '#fff');
+    if (config.quizMode && quiz.cur) { text(quiz.cur.q, g.W / 2, g.H * 0.32, g.m * 0.08, '#fbd38d'); text('是答案的字 → 揮回去　　不是答案的字 → 不要揮', g.W / 2, g.H * 0.42, g.m * 0.04, '#fff'); }
+    else text(bossInfo ? `BOSS 有真有假，打中真的 ${H} 次就過關` : `打敗 ${K} 隻怪獸就過關`, g.W / 2, g.H * 0.28, g.m * 0.045, '#fff');
   }
   else if (state === 'PLAYING' && countdown > -0.8) text('開始！', g.W / 2, g.H * 0.42, g.m * 0.25, '#68d391');
   if (state === 'AWAY') { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, g.W, g.H); drawZone(g); text('請站回中間', g.W / 2, g.H * 0.2, g.m * 0.1, '#fbd38d'); }
@@ -710,6 +851,12 @@ function drawZone(g) {
     text(inZ ? `很好！站著不動…` : '👣 請站到這個框框裡', g.W / 2, by + bh * 3, Math.max(18, g.m * 0.045), '#fff');
     ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(bx, by, bw, bh, bh); ctx.fill(); ctx.fillStyle = '#68d391'; rr(bx, by, bw * pr, bh, bh); ctx.fill();
   }
+}
+function drawQuizBanner(g) {   // 題目放在畫面下方（愛心、手痠條的上面）
+  const fs = Math.round(Math.max(20, Math.min(46, g.m * 0.05))), t = '📖 ' + quiz.cur.q;
+  ctx.save(); ctx.font = `bold ${fs}px ${FONT}`; const w = Math.min(g.W * 0.8, ctx.measureText(t).width + fs * 1.6), h = fs * 1.7, x = g.W / 2 - w / 2, y = g.H - fs * 6.4;
+  ctx.fillStyle = 'rgba(0,0,0,.72)'; rr(x, y, w, h, fs * 0.5); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = '#fbd38d'; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, g.W / 2, y + h / 2, w - fs * 0.6); ctx.restore();
 }
 function drawHUD(g) {
   const fs = Math.round(Math.max(18, Math.min(40, g.m * 0.04))), pad = fs * 0.5, ph = fs * 2.8;
@@ -730,6 +877,7 @@ function drawHUD(g) {
 
 // ================= 設定 =================
 function fillSettings() {
+  fillQuizTpl(); $('cQuizMode').checked = !!config.quizMode; $('cQuizText').value = config.questionsText || DEFAULT_QUESTIONS;
   $('cLives').value = config.lives; $('cStartLevel').value = config.startLevel; $('cBossEvery').value = config.bossEvery; $('cThrow').value = config.throwRate; $('cSpeed').value = config.speed;
   $('cTol').value = config.tol; $('cStunPenalty').value = config.stunPenalty; $('cStand').value = config.standSeconds; $('cRed').checked = config.redTint;
   $('cAttack').value = config.attack.join(' '); $('cEnemy').value = config.enemy.join(' '); $('cBoss').value = config.boss.join(' ');
@@ -740,6 +888,8 @@ function saveSettings() {
   config.lives = Math.round(num('cLives', D.lives, 1, 5)); config.startLevel = Math.round(num('cStartLevel', 1, 1, 99)); config.bossEvery = Math.round(num('cBossEvery', 5, 2, 20));
   config.throwRate = $('cThrow').value; config.speed = $('cSpeed').value; config.tol = $('cTol').value; config.stunPenalty = Math.round(num('cStunPenalty', D.stunPenalty, 1, 10));
   config.standSeconds = num('cStand', D.standSeconds, 1, 10); config.redTint = $('cRed').checked;
+  config.quizMode = $('cQuizMode').checked; config.questionsText = $('cQuizText').value.trim() || DEFAULT_QUESTIONS;
+  if (config.quizMode && !parseQuestions(config.questionsText).length) { alert('題本裡找不到題目，先用預設題目。\n每行要像「哪些是『天』？=天|夭,大,夫」'); config.questionsText = DEFAULT_QUESTIONS; }
   const a = splitChars($('cAttack').value), e = splitChars($('cEnemy').value), bs = splitChars($('cBoss').value);
   config.attack = a.length ? a : D.attack; config.enemy = e.length ? e : D.enemy; config.boss = bs.length ? bs : D.boss;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); } catch (err) {}
