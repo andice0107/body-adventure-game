@@ -463,7 +463,7 @@ function loop(ts) {
 requestAnimationFrame(loop);
 
 function update(dt, g) {
-  outWarn = body.present ? (body.outFrac >= 0.3 ? true : body.outFrac < 0.2 ? false : outWarn) : false;
+  outWarn = body.present ? (body.outFrac >= 0.7 ? true : body.outFrac < 0.55 ? false : outWarn) : false;
   if (state === 'CALIB') {
     standUpdate(dt);
     if (standHold >= standNeeded) { state = 'PLAYING'; countdown = 3; playSound('go'); }
